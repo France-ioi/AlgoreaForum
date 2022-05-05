@@ -1,0 +1,46 @@
+service: forum
+frameworkVersion: '3'
+
+# custom:
+#  dynamodb:
+  #  stages:
+  #    - dev
+  #  start:
+  #    port: 8000
+  #    inMemory: true
+  #    heapInitial: 200m
+  #    heapMax: 1g
+  #    migrate: true
+  #    convertEmptyValues: true
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+
+functions:
+  hello:
+    handler: src/handler.hello
+    events:
+      - httpApi:
+          path: /
+          method: get
+  send-offer:
+    handler: src/rtc.sendOfferToConnectedPeers
+    events:
+      - websocket:
+          route: send-offer
+  answer-to-offer:
+    handler: src/rtc.answerToOffer
+    events:
+      - websocket:
+          route: answer-to-offer
+  accept-answer:
+    handler: src/rtc.acceptAnswer
+    events:
+      - websocket:
+          route: accept-answer
+
+plugins:
+  - serverless-plugin-typescript
+  - serverless-dynamodb-local
+  - serverless-offline

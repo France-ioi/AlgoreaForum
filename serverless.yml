@@ -1,29 +1,67 @@
 service: forum
 frameworkVersion: '3'
 
-# custom:
-#  dynamodb:
-  #  stages:
-  #    - dev
-  #  start:
-  #    port: 8000
-  #    inMemory: true
-  #    heapInitial: 200m
-  #    heapMax: 1g
-  #    migrate: true
-  #    convertEmptyValues: true
+custom:
+ dynamodb:
+   stages:
+     - dev
+   start:
+     port: 8000
+     inMemory: true
+     heapInitial: 200m
+     heapMax: 1g
+     migrate: true
+     convertEmptyValues: true
 
 provider:
   name: aws
   runtime: nodejs14.x
+  httpApi:
+    cors: true
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - "dynamodb:PutItem"
+        - "dynamodb:GetItem"
+        - "dynamodb:DeleteItem"
+        - "dynamodb:Scan"
+      Resource:
+        - Fn::GetAtt: [RtcTable, Arn]
+    - Effect: Allow
+      Action:
+        - "execute-api:ManageConnections"
+      Resource:
+        - "arn:aws:execute-api:*:*:**/@connections/*"
 
 functions:
-  hello:
-    handler: src/handler.hello
+  public-html:
+    handler: src/public.html
     events:
       - httpApi:
-          path: /
+          path: /index.html
           method: get
+  public-js:
+    handler: src/public.js
+    events:
+      - httpApi:
+          path: /main.js
+          method: get
+  # hello:
+  #   handler: src/handler.hello
+  #   events:
+  #     - httpApi:
+  #         path: /
+  #         method: get
+  add-peer:
+    handler: src/rtc.addPeer
+    events:
+      - websocket:
+          route: $connect
+  remove-peer:
+    handler: src/rtc.removePeer
+    events:
+      - websocket:
+          route: $disconnect
   send-offer:
     handler: src/rtc.sendOfferToConnectedPeers
     events:
@@ -44,3 +82,17 @@ plugins:
   - serverless-plugin-typescript
   - serverless-dynamodb-local
   - serverless-offline
+
+resources:
+  Resources:
+    RtcTable:
+      Type: "AWS::DynamoDB::Table"
+      Properties:
+        AttributeDefinitions:
+        - AttributeName: "connectionId"
+          AttributeType: "S"
+        KeySchema:
+        - AttributeName: "connectionId"
+          KeyType: "HASH"
+        BillingMode: PAY_PER_REQUEST
+        TableName: rtcTable

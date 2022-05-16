@@ -6,7 +6,7 @@ custom:
    stages:
      - dev
    start:
-     port: 8000
+     port: 7000
      inMemory: true
      heapInitial: 200m
      heapMax: 1g
@@ -26,7 +26,7 @@ provider:
         - "dynamodb:DeleteItem"
         - "dynamodb:Scan"
       Resource:
-        - Fn::GetAtt: [RtcTable, Arn]
+        - Fn::GetAtt: [PeersTable, Arn]
     - Effect: Allow
       Action:
         - "execute-api:ManageConnections"
@@ -34,6 +34,42 @@ provider:
         - "arn:aws:execute-api:*:*:**/@connections/*"
 
 functions:
+  connection:
+    handler: src/forum.handleConnection
+    events:
+      - websocket:
+          route: $connect
+  disconnection:
+    handler: src/forum.handleDisconnection
+    events:
+      - websocket:
+          route: $disconnect
+  offer-help:
+    handler: src/forum.assistantOffersHelp
+    events:
+      - websocket:
+          route: offer-help
+  reject-help:
+    handler: src/forum.traineeRejectsHelpOffer
+    events:
+      - websocket:
+          route: reject-help
+  accept-help:
+    handler: src/forum.traineeAcceptsHelpOffer
+    events:
+      - websocket:
+          route: accept-help
+  trainee-ends-help:
+    handler: src/forum.traineeEndsHelp
+    events:
+      - websocket:
+          route: trainee-ends-help
+  assistant-ends-help:
+    handler: src/forum.assistantEndsHelp
+    events:
+      - websocket:
+          route: assistant-ends-help
+
   public-html:
     handler: src/public.html
     events:
@@ -46,37 +82,31 @@ functions:
       - httpApi:
           path: /main.js
           method: get
-  # hello:
-  #   handler: src/handler.hello
+  # connection:
+  #   handler: src/rtc.connectionHandler
   #   events:
-  #     - httpApi:
-  #         path: /
-  #         method: get
-  add-peer:
-    handler: src/rtc.addPeer
-    events:
-      - websocket:
-          route: $connect
-  remove-peer:
-    handler: src/rtc.removePeer
-    events:
-      - websocket:
-          route: $disconnect
-  send-offer:
-    handler: src/rtc.sendOfferToConnectedPeers
-    events:
-      - websocket:
-          route: send-offer
-  answer-to-offer:
-    handler: src/rtc.answerToOffer
-    events:
-      - websocket:
-          route: answer-to-offer
-  accept-answer:
-    handler: src/rtc.acceptAnswer
-    events:
-      - websocket:
-          route: accept-answer
+  #     - websocket:
+  #         route: $connect
+  # disconnection:
+  #   handler: src/rtc.disconnectionHandler
+  #   events:
+  #     - websocket:
+  #         route: $disconnect
+  # forward-offer:
+  #   handler: src/rtc.forwardOffer
+  #   events:
+  #     - websocket:
+  #         route: forward-offer
+  # forward-answer:
+  #   handler: src/rtc.forwardAnswer
+  #   events:
+  #     - websocket:
+  #         route: forward-answer
+  # forward-ice-candidate:
+  #   handler: src/rtc.forwardIceCandidate
+  #   events:
+  #     - websocket:
+  #         route: forward-ice-candidate
 
 plugins:
   - serverless-plugin-typescript
@@ -85,14 +115,18 @@ plugins:
 
 resources:
   Resources:
-    RtcTable:
+    PeersTable:
       Type: "AWS::DynamoDB::Table"
       Properties:
         AttributeDefinitions:
         - AttributeName: "connectionId"
           AttributeType: "S"
+        # - AttributeName: "status"
+        #   AttributeType: "S"
+        # - AttributeName: "ttl"
+        #   AttributeType: "N"
         KeySchema:
         - AttributeName: "connectionId"
           KeyType: "HASH"
         BillingMode: PAY_PER_REQUEST
-        TableName: rtcTable
+        TableName: peersTable

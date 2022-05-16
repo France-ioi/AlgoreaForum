@@ -160,3 +160,21 @@ An RTC peer connection **creation** (per peer id) can be summed up by:
 - Listen to event `'datachannel'`, these are the channels **LocalPeer** receives messages from
 - Listen to event `'icecandidate'` (triggered after creating an offer or answer). When triggered:
   - Send to **Server** message `{ action: 'forward-icecandidate', candidate: RTCIceCandidate, toPeerId: A_peerId }`
+
+## How to test
+
+Requirements:
+- Project downloaded and installed (`npm ci`)
+- `localtunnel` installed globally (`npm i -g localtunnel`)
+
+First, forward local ports using:
+- In tab 1: `lt --port 3000 --print-requests` - exposes public site via public url
+- In tab 2: `lt --port 3001 --print-requests` - exposes sockets via public url
+
+Then:
+- update `main.js` websocket source with url from tab 1
+- In tab 3: `npm start`
+
+And finally:
+- Have one peer connect to url from tab 1 **with http NOT httpS**
+- Have another peer connect at same url (from another network)

@@ -70,6 +70,18 @@ functions:
       - websocket:
           route: assistant-ends-help
 
+  public-html:
+    handler: src/public.html
+    events:
+      - httpApi:
+          path: /index.html
+          method: get
+  public-js:
+    handler: src/public.js
+    events:
+      - httpApi:
+          path: /main.js
+          method: get
 plugins:
   - serverless-plugin-typescript
   - serverless-dynamodb-local

@@ -116,19 +116,6 @@ export const assistantOffersHelp: APIGatewayProxyHandler = async (event) => {
 };
 
 /**
- * When a trainee rejects the help offer, we notify the assistant his/her offer was rejected.
- * 
- * And that's all we do because none of the participant's status was changed yet.
- */
-export const traineeRejectsHelpOffer: APIGatewayProxyHandler = async (event) => {
-  const { assistant } = getPayload(event);
-  if (!isPeer(assistant)) return { statusCode: 400, body: 'assistant must be a peer' };
-  const trainee = await peersTable.get(getConnectionId(event));
-  await send(assistant.connectionId, { type: 'reject-offer', trainee });
-  return { statusCode: 204, body: '' };
-}
-
-/**
  * When a trainee accepts help offer, we:
  * - Update the assistant & trainee status to "busy"
  * - Notify the assistant that the trainee accepted his help offer

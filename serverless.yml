@@ -49,11 +49,6 @@ functions:
     events:
       - websocket:
           route: offer-help
-  reject-help:
-    handler: src/forum.traineeRejectsHelpOffer
-    events:
-      - websocket:
-          route: reject-help
   accept-help:
     handler: src/forum.traineeAcceptsHelpOffer
     events:

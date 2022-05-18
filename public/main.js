@@ -109,7 +109,6 @@ function onMessage(event) {
     case 'trainee-disconnected': return onTraineeDisconnected(payload.trainee);
     case 'help-offer': return onHelpOffer(payload.assistant);
     case 'accept-offer': return onAcceptOffer(payload.trainee);
-    case 'reject-offer': return onRejectOffer(payload.trainee);
     case 'help-ended': return onHelpEnded();
     default: throw new Error(`unhandled message: ${payload.type}`)
   }
@@ -141,32 +140,17 @@ function onAssistantDisconnected(assistant) {
 
 // only as-trainee function
 function onHelpOffer(assistant) {
+  currentAssistant = assistant
+  send({ action: 'accept-help', assistant });
   const node = document.createElement('div');
-  node.textContent = assistant.connectionId + ' offers his/her help, do you accept it? '
-  const acceptBtn = node.appendChild(document.createElement('button'));
-  acceptBtn.textContent = 'Yes'
-  acceptBtn.style.marginRight = '0.5rem'
-  acceptBtn.onclick = () => {
-    currentAssistant = assistant
-    send({ action: 'accept-help', assistant });
-    const node = document.createElement('div');
-    node.textContent = 'Now the help process starts for the trainee '
-    const endBtn = node.appendChild(document.createElement('button'))
-    endBtn.textContent = 'End help'
-    endBtn.onclick = () => {
-      send({ action: 'trainee-ends-help', assistant })
-      disconnect();
-    }
-    updateActions(node)
+  node.textContent = 'Now the help process starts for the trainee '
+  const endBtn = node.appendChild(document.createElement('button'))
+  endBtn.textContent = 'End help'
+  endBtn.onclick = () => {
+    send({ action: 'trainee-ends-help', assistant })
+    disconnect();
   }
-  const rejectBtn = node.appendChild(document.createElement('button'));
-  rejectBtn.textContent = 'No'
-  rejectBtn.onclick = () => {
-    send({ action: 'reject-help', assistant });
-    updateActions(Object.assign(document.createElement('div'), { textContent: 'The help process stops here for the trainee' }));
-  };
-
-  updateActions(node);
+  updateActions(node)
 }
 
 function onAcceptOffer(trainee) {
@@ -178,10 +162,6 @@ function onAcceptOffer(trainee) {
     send({ action: 'assistant-ends-help', trainee })
   }
   updateActions(node);
-}
-
-function onRejectOffer(trainee) {
-  renderWaitingTrainees();
 }
 
 function onHelpEnded() {

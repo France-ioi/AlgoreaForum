@@ -8,7 +8,6 @@ export type Message =
   | { type: 'trainee-disconnected', trainee: Peer }
   | { type: 'help-offer', assistant: Peer }
   | { type: 'accept-offer', trainee: Peer }
-  | { type: 'reject-offer', trainee: Peer }
   | { type: 'help-ended' }; // sent to trainees when assistants end the process. Might be reused for other purposes later on.
 
 const gatewayApi = new AWS.ApiGatewayManagementApi({

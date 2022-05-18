@@ -17,12 +17,17 @@ class PeersTable {
   constructor(private dynamo: AWS.DynamoDB.DocumentClient) {}
 
   async add(peer: Peer) {
+    const seconds = 1000;
+    const minutes = 60*seconds;
+    const hours = 60*minutes;
+    const days = 24*hours;
+
     await this.dynamo.put({
       TableName: peersTableName,
       Item: {
         connectionId: peer.connectionId,
         status: peer.status,
-        ttl: 42, // for now
+        expiresAt: 2*days, // for now
       },
     }).promise();
   }

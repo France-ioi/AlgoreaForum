@@ -1,6 +1,6 @@
 import type { APIGatewayProxyHandler, APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { isPeer, Peer, peersTable } from './db/peers';
-import { send, sendAll } from './message'
+import { disconnect, send, sendAll } from './message'
 import { getConnectionId, getPayload } from './parsers';
 
 /**
@@ -30,14 +30,13 @@ export const handleConnection: APIGatewayProxyHandler = async (event) => {
  * - Send him/her the trainees awaiting help
  */
 const handleAssistantConnection = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  const connectionId = getConnectionId(event)
-  await peersTable.add({ connectionId, status: 'ASSISTANT_FREE' })
-  const waitingTrainees = await peersTable.getByStatus('TRAINEE_WAITING')
+  const connectionId = getConnectionId(event);
+  await peersTable.add({ connectionId, is: 'assistant', involvedWith: null });
 
   // The server needs to return a response before being able to send messages to a peer
   // For that reason, the `send` instruction is deferred, scheduled right after the function return
   setTimeout(() => {
-    send(connectionId, { type: 'waiting-trainees', peers: waitingTrainees });
+    sendWaitingTraineesToFreeAssistants().catch();
   }, 1);
   return { statusCode: 200, body: JSON.stringify({ type: 'assistant' }) }
 };
@@ -49,14 +48,8 @@ const handleAssistantConnection = async (event: APIGatewayProxyEvent): Promise<A
  * - Send to free/available assistants a new list of trainees awaiting help
  */
 const handleTraineeConnection = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  await peersTable.add({ connectionId: getConnectionId(event), status: 'TRAINEE_WAITING' });
-  const [waitingTrainees, freeAssistants] = await Promise.all([
-    peersTable.getByStatus('TRAINEE_WAITING'),
-    peersTable.getByStatus('ASSISTANT_FREE'),
-  ])
-  await Promise.all(freeAssistants.map((assistant) => {
-    return send(assistant.connectionId, { type: 'waiting-trainees', peers: waitingTrainees })
-  }));
+  await peersTable.add({ connectionId: getConnectionId(event), is: 'trainee', involvedWith: null });
+  await sendWaitingTraineesToFreeAssistants();
   return { statusCode: 200, body: JSON.stringify({ type: 'trainee' }) };
 };
 
@@ -64,11 +57,15 @@ const handleTraineeConnection = async (event: APIGatewayProxyEvent): Promise<API
  * Acts as a proxy to handle disconnection of a trainee or an assistant.
  */
 export const handleDisconnection: APIGatewayProxyHandler = async (event) => {
-  const peer = await peersTable.get(getConnectionId(event));
-  const isTrainee = peer.status === 'TRAINEE_BUSY' || peer.status === 'TRAINEE_WAITING';
-  return isTrainee
-    ? handleTraineeDisconnection(peer)
-    : handleAssistantDisconnection(peer)
+  try {
+    const peer = await peersTable.get(getConnectionId(event));
+    return peer.is === 'trainee'
+      ? handleTraineeDisconnection(peer)
+      : handleAssistantDisconnection(peer)
+  } catch (err) {
+    // Peer does not exist, and it's fine.
+    return { statusCode: 204, body: '' };
+  }
 };
 
 /**
@@ -77,11 +74,16 @@ export const handleDisconnection: APIGatewayProxyHandler = async (event) => {
  * - Send all busy trainees the information so that if one is concerned, s-he will start again the help process with someone else
  */
 const handleAssistantDisconnection = async (assistant: Peer): Promise<APIGatewayProxyResult> => {
-  const [busyTrainees] = await Promise.all([
-    peersTable.getByStatus('TRAINEE_BUSY'),
-    peersTable.delete(assistant.connectionId),
+  await peersTable.delete(assistant);
+  if (!assistant.involvedWith) return { statusCode: 204, body: '' };
+
+  // If a busy assistant got disconnected, its trainee waits again for help so we should:
+  // - notify free assistants with new awaiting trainees
+  // - notify the trainee s-he is not being helped anymore
+  await Promise.all([
+    send(assistant.involvedWith, { type: 'assistant-disconnected', assistant }),
+    sendWaitingTraineesToFreeAssistants(),
   ]);
-  await sendAll(busyTrainees.map((trainee) => trainee.connectionId), { type: 'assistant-disconnected', assistant })
   return { statusCode: 204, body: '' };
 };
 
@@ -93,13 +95,15 @@ const handleAssistantDisconnection = async (assistant: Peer): Promise<APIGateway
  *   - If the assistant was not helping him/her and is available, s-he will remove the trainee from the list of trainees awaiting help
  */
 const handleTraineeDisconnection = async (trainee: Peer): Promise<APIGatewayProxyResult> => {
-  const [busyAssistants, freeAssistants] = await Promise.all([
-    peersTable.getByStatus('ASSISTANT_BUSY'),
-    peersTable.getByStatus('ASSISTANT_FREE'),
-    peersTable.delete(trainee.connectionId),
-  ]);
-  const recipients =  [...busyAssistants, ...freeAssistants].map((peer) => peer.connectionId);
-  await sendAll(recipients, { type: 'trainee-disconnected', trainee });
+  await peersTable.delete(trainee);
+  if (trainee.involvedWith) {
+    const waitingTrainees = await peersTable.getAwaitingTrainees();
+    // tacitly, the client-side will know the assistant is available when receiving a "waiting-trainees" message
+    await send(trainee.involvedWith, { type: 'waiting-trainees', trainees: waitingTrainees });
+  } else {
+    // If the trainee was waiting for help, notify free assistant thatr s-he is not waiting anymore
+    await sendWaitingTraineesToFreeAssistants();
+  }
   return { statusCode: 204, body: '' };
 };
 
@@ -125,35 +129,20 @@ export const traineeAcceptsHelpOffer: APIGatewayProxyHandler = async (event) => 
   const { assistant } = getPayload(event);
   if (!isPeer(assistant)) return { statusCode: 400, body: 'assistant must be a peer with a status and a connection id' };
   const traineeConnectionId = getConnectionId(event);
+
+  await peersTable.updateInvolvedWith(assistant, traineeConnectionId)
+  // since a trainee ahs been given help, he does not wait anymore. Thus, notify free assistants.
+  const promiseInBg = sendWaitingTraineesToFreeAssistants();
+
+  const trainee = await peersTable.get(traineeConnectionId);
   await Promise.all([
-    peersTable.update(assistant.connectionId, 'ASSISTANT_BUSY'),
-    peersTable.update(traineeConnectionId, 'TRAINEE_BUSY'),
-  ]);
-  const [freeAssistants, updatedTrainee] = await Promise.all([
-    peersTable.getByStatus('ASSISTANT_FREE'),
-    peersTable.get(traineeConnectionId),
-  ]);
-  const recipients = freeAssistants.map((peer) => peer.connectionId);
-  await Promise.all([
-    sendAll(recipients, { type: 'trainee-status-change', trainee: updatedTrainee }),
-    send(assistant.connectionId, { type: 'accept-offer', trainee: updatedTrainee }),
+    // notify the assistant the trainee accepted his/her help.
+    send(assistant.connectionId, { type: 'accept-offer', trainee }),
+    promiseInBg,
   ])
   
-  return { statusCode: 204, body: '' }
-}
-
-/**
- * When a trainee ends help, s-he will also disconnect right after issuing that message.
- * 
- * For that message only, we change the assistant status to free/available and do nothing more, the rest will be handled at disconnection.
- */
-export const traineeEndsHelp: APIGatewayProxyHandler = async (event) => {
-  const { assistant } = getPayload(event);
-  if (!isPeer(assistant)) return { statusCode: 400, body: 'trainee must be a peer with a status and a connection id' };
-
-  await peersTable.update(assistant.connectionId, 'ASSISTANT_FREE');
   return { statusCode: 204, body: '' };
-};
+}
 
 /**
  * When an assistant ends the help process, it means s-he considers the help effective. In that case we:
@@ -164,16 +153,25 @@ export const traineeEndsHelp: APIGatewayProxyHandler = async (event) => {
 export const assistantEndsHelp: APIGatewayProxyHandler = async (event) => {
   const { trainee } = getPayload(event);
   if (!isPeer(trainee)) return { statusCode: 400, body: 'trainee must be a peer with a status and a connection id' };
-  const assistantConnectionId = getConnectionId(event);
-
-  const [awaitingTrainees] = await Promise.all([
-    peersTable.getByStatus('TRAINEE_WAITING'),
-    peersTable.update(assistantConnectionId, 'ASSISTANT_FREE'),
+  
+  const [assistant, waitingTrainees] = await Promise.all([
+    peersTable.get(getConnectionId(event)),
+    peersTable.getAwaitingTrainees(),
+    peersTable.delete(trainee),
   ]);
+
   await Promise.all([
-    send(trainee.connectionId, { type: 'help-ended' }),
-    send(assistantConnectionId, { type: 'waiting-trainees', peers: awaitingTrainees })
+    disconnect(trainee.connectionId),
+    send(assistant.connectionId, { type: 'waiting-trainees', trainees: waitingTrainees }),
   ]);
 
   return { statusCode: 204, body: '' };
 };
+
+const sendWaitingTraineesToFreeAssistants = async () => {
+  const [trainees, assistants] = await Promise.all([
+    peersTable.getAwaitingTrainees(),
+    peersTable.getFreeAssistants(),
+  ]);
+  await sendAll(assistants.map((peer) => peer.connectionId), { type: 'waiting-trainees', trainees });
+}

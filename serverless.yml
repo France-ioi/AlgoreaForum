@@ -54,11 +54,6 @@ functions:
     events:
       - websocket:
           route: accept-help
-  trainee-ends-help:
-    handler: src/forum.traineeEndsHelp
-    events:
-      - websocket:
-          route: trainee-ends-help
   assistant-ends-help:
     handler: src/forum.assistantEndsHelp
     events:

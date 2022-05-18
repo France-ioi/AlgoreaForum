@@ -1,10 +1,5 @@
 // @ts-check
 
-// const root = document.querySelector('ul');
-// function displayMessage(type, message = '') {
-//   const li = root.appendChild(document.createElement('li'))
-//   li.textContent = `[${type}] ${message}`
-// }
 const connectDiv = document.querySelector('#connect')
 const [connectAsAssistantBtn, connectAsTraineeBtn, disconnectBtn] = Array.from(connectDiv.querySelectorAll('button'))
 const role = document.querySelector('#role')
@@ -43,9 +38,7 @@ function connect(as) {
   }
   source.onclose = (event) => {
     console.info('[close]', event)
-    connectAsAssistantBtn.disabled = false
-    connectAsTraineeBtn.disabled = false
-    disconnectBtn.disabled = true
+    onClose();
     // displayMessage('close')
   }
   const text = as === 'trainee'
@@ -58,11 +51,16 @@ function disconnect() {
   if (!source) return
   console.info('close source')
   source.close()
-  source = undefined;
-  role.textContent = '';
-  updateActions(); // this empties the actions
 }
 
+function onClose() {
+  source = undefined;
+  role.textContent = '';
+  connectAsAssistantBtn.disabled = false
+  connectAsTraineeBtn.disabled = false
+  disconnectBtn.disabled = true
+  updateActions(); // this empties the actions
+}
 
 function send(message) {
   if (!source) throw new Error('no source');
@@ -91,25 +89,19 @@ function renderWaitingTrainees() {
 
 /*
 export type Message =
-  | { type: 'waiting-trainees', peers: Peer[] }
-  | { type: 'peer-status-change', peer: Peer } // used to update trainee or assistant status in UI.
+  | { type: 'waiting-trainees', trainees: Peer[] }
   | { type: 'assistant-disconnected', assistant: Peer }
-  | { type: 'trainee-disconnected', trainee: Peer }
   | { type: 'help-offer', assistant: Peer }
   | { type: 'accept-offer', trainee: Peer }
-  | { type: 'help-ended' }
 */
 
 function onMessage(event) {
   const payload = JSON.parse(event.data);
   switch (payload.type) {
-    case 'waiting-trainees': return onWaitingTrainees(payload.peers);
-    case 'trainee-status-change': return onTraineeStatusChange(payload.trainee);
+    case 'waiting-trainees': return onWaitingTrainees(payload.trainees);
     case 'assistant-disconnected': return onAssistantDisconnected(payload.assistant);
-    case 'trainee-disconnected': return onTraineeDisconnected(payload.trainee);
     case 'help-offer': return onHelpOffer(payload.assistant);
     case 'accept-offer': return onAcceptOffer(payload.trainee);
-    case 'help-ended': return onHelpEnded();
     default: throw new Error(`unhandled message: ${payload.type}`)
   }
 }
@@ -120,18 +112,6 @@ function onWaitingTrainees(trainees) {
   renderWaitingTrainees();
 }
 
-function onTraineeStatusChange(peer) {
-  waitingTrainees.forEach((trainee) => {
-    if (trainee.connectionId === peer.connectionId) trainee.status = peer.status;
-  });
-  renderWaitingTrainees();
-}
-
-function onTraineeDisconnected(trainee) {
-  console.info('on peer disconnected');
-  waitingTrainees = waitingTrainees.filter((waitingTrainee) => waitingTrainee.connectionId !== trainee.connectionId);
-  renderWaitingTrainees();
-}
 function onAssistantDisconnected(assistant) {
   if (assistant.connectionId !== currentAssistant?.connectionId) return;
   disconnect()
@@ -162,9 +142,4 @@ function onAcceptOffer(trainee) {
     send({ action: 'assistant-ends-help', trainee })
   }
   updateActions(node);
-}
-
-function onHelpEnded() {
-  // this function is always executed as trainee.
-  disconnect();
 }

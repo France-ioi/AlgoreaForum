@@ -7,11 +7,14 @@ const dynamo = new AWS.DynamoDB.DocumentClient({
 const peersTableName = 'peersTable'
 
 export interface Peer {
+  is: 'assistant' | 'trainee',
   connectionId: string,
-  status: 'ASSISTANT_FREE' | 'ASSISTANT_BUSY' | 'TRAINEE_WAITING' | 'TRAINEE_BUSY',
+  involvedWith: string | null, // connection id of other peer.If not involved, free or waiting. If involved, busy.
 }
-export const isPeer = (data: any): data is Peer => data && typeof data === 'object' && typeof data.connectionId === 'string' &&
-  typeof data.status === 'string' && ['ASSISTANT_FREE', 'ASSISTANT_BUSY', 'TRAINEE_WAITING', 'TRAINEE_BUSY'].includes(data.status);
+export const isPeer = (data: any): data is Peer => data && typeof data === 'object' &&
+  typeof data.connectionId === 'string' && // validate peer.connectionId
+  typeof data.is === 'string' && ['assistant', 'trainee'].includes(data.is) && // validate peer.is
+  (data.involvedWith === null || typeof data.involvedWith === 'string'); // validate peer.involvedWith
 
 class PeersTable {
   constructor(private dynamo: AWS.DynamoDB.DocumentClient) {}
@@ -25,39 +28,78 @@ class PeersTable {
     await this.dynamo.put({
       TableName: peersTableName,
       Item: {
+        is: peer.is,
         connectionId: peer.connectionId,
-        status: peer.status,
+        involvedWith: peer.involvedWith || null,
         expiresAt: 2*days, // for now
       },
     }).promise();
   }
 
-  async update(connectionId: string, status: Peer['status']) {
+  private async update(connectionId: string, involvedWith: Peer['involvedWith']) {
     await this.dynamo.update({
       TableName: peersTableName,
       Key: { connectionId },
       AttributeUpdates: {
-        status: { Value: status }
+        involvedWith: { Value: involvedWith },
       },
     }).promise();
   }
 
-  async delete(connectionId: string) {
+  async updateInvolvedWith(peer: Peer, involvedWith: Peer['involvedWith']) {
+    await Promise.all([
+      this.update(peer.connectionId, involvedWith),
+      involvedWith && this.update(involvedWith, peer.connectionId), // if a peer becomes involved with another, mark the other as involved too.
+      peer.involvedWith && peer.involvedWith !== involvedWith && this.update(peer.involvedWith, null), // remove old involvement
+    ].filter(Boolean));
+  }
+
+  private async deleteById(connectionId: string) {
     await this.dynamo.delete({
       TableName: peersTableName,
       Key: { connectionId },
     }).promise();
   }
+  async delete(peer: Peer) {
+    await Promise.all([
+      this.deleteById(peer.connectionId),
+      peer.involvedWith && this.update(peer.involvedWith, null), // involved peer becomes uninvolved
+    ].filter(Boolean));
+  }
 
-  async getByStatus(status: Peer['status']): Promise<Peer[]> {
+  private async getAll({ is, busy }: { is: Peer['is'], busy: boolean }) {
     const result = await this.dynamo.scan({
       TableName: peersTableName,
-      ExpressionAttributeNames: { '#status': 'status' },
-      ExpressionAttributeValues: { ':status': status },
-      FilterExpression: '#status = :status',
+      ExpressionAttributeNames: {
+        '#involvedWith': 'involvedWith',
+        '#is': 'is',
+      },
+      ExpressionAttributeValues: {
+        ':is': is,
+        ':null': null,
+      },
+      FilterExpression: [
+        '#is = :is',
+        `#involvedWith ${busy ? '<>' : '='} :null`,
+      ].join(' AND '),
     }).promise();
-    return (result.Items ?? []) as Peer[];
+    console.info({ is, busy }, result.Items);
+    return (result.Items || []) as Peer[];
   }
+
+  async getFreeAssistants() {
+    return this.getAll({ is: 'assistant', busy: false })
+  }
+  async getBusyAssistants() {
+    return this.getAll({ is: 'assistant', busy: true })
+  }
+  async getAwaitingTrainees() {
+    return this.getAll({ is: 'trainee', busy: false })
+  }
+  async getBusyTrainees() {
+    return this.getAll({ is: 'trainee', busy: true })
+  }
+
   async get(connectionId: string): Promise<Peer> {
     const result = await this.dynamo.get({
       TableName: peersTableName,

@@ -6,7 +6,7 @@ export const getConnectionId = (event: APIGatewayProxyEvent) => {
   return id
 };
 
-export const getPayload = (event: APIGatewayProxyEvent): Record<string, any> => {
+export const getPayload = (event: APIGatewayProxyEvent): Record<string, unknown> => {
   try {
     if (!event.body) throw new Error()
     return JSON.parse(event.body)

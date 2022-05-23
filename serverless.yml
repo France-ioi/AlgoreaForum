@@ -1,0 +1,100 @@
+service: forum
+frameworkVersion: '3'
+
+custom:
+ dynamodb:
+   stages:
+     - dev
+   start:
+     port: 7000
+     inMemory: true
+     heapInitial: 200m
+     heapMax: 1g
+     migrate: true
+     convertEmptyValues: true
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  httpApi:
+    cors: true
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - "dynamodb:PutItem"
+        - "dynamodb:GetItem"
+        - "dynamodb:DeleteItem"
+        - "dynamodb:Scan"
+      Resource:
+        - Fn::GetAtt: [PeersTable, Arn]
+    - Effect: Allow
+      Action:
+        - "execute-api:ManageConnections"
+      Resource:
+        - "arn:aws:execute-api:*:*:**/@connections/*"
+
+functions:
+  connection:
+    handler: src/forum.handleConnection
+    events:
+      - websocket:
+          route: $connect
+  disconnection:
+    handler: src/forum.handleDisconnection
+    events:
+      - websocket:
+          route: $disconnect
+  offer-help:
+    handler: src/forum.assistantOffersHelp
+    events:
+      - websocket:
+          route: offer-help
+  accept-help:
+    handler: src/forum.traineeAcceptsHelpOffer
+    events:
+      - websocket:
+          route: accept-help
+  trainee-ends-help:
+    handler: src/forum.traineeEndsHelp
+    events:
+      - websocket:
+          route: trainee-ends-help
+  assistant-ends-help:
+    handler: src/forum.assistantEndsHelp
+    events:
+      - websocket:
+          route: assistant-ends-help
+
+  public-html:
+    handler: src/public.html
+    events:
+      - httpApi:
+          path: /index.html
+          method: get
+  public-js:
+    handler: src/public.js
+    events:
+      - httpApi:
+          path: /main.js
+          method: get
+plugins:
+  - serverless-plugin-typescript
+  - serverless-dynamodb-local
+  - serverless-offline
+
+resources:
+  Resources:
+    PeersTable:
+      Type: "AWS::DynamoDB::Table"
+      Properties:
+        AttributeDefinitions:
+        - AttributeName: "connectionId"
+          AttributeType: "S"
+        KeySchema:
+        - AttributeName: "connectionId"
+          KeyType: "HASH"
+        BillingMode: PAY_PER_REQUEST
+        TableName: peersTable
+        TimeToLiveSpecification:
+          AttributeName: "expiresAt"
+          Enabled: true

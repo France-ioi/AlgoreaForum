@@ -1,4 +1,4 @@
-import type { APIGatewayProxyHandler, APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import type { APIGatewayProxyHandler, APIGatewayProxyEvent, APIGatewayProxyResult, Callback } from 'aws-lambda';
 import { isPeer, Peer, peersTable } from './db/peers';
 import { send, sendAll } from './message';
 import { getConnectionId, getPayload } from './parsers';
@@ -11,16 +11,13 @@ import { getConnectionId, getPayload } from './parsers';
  * const assistantSocket = new WebSocket('ws://localhost:3001/?as=assistant')
  * const traineeSocket = new WebSocket('ws://localhost:3001/?as=trainee')
  */
-export const handleConnection: APIGatewayProxyHandler = async event => {
+export const handleConnection: APIGatewayProxyHandler = (event, _context, callback) => {
   const as = event.queryStringParameters?.as;
   if (as !== 'trainee' && as !== 'assistant') throw new Error('"as" query parameter is required, expected "assistant" or "trainee"');
-  try {
-    return as === 'assistant'
-      ? await handleAssistantConnection(event)
-      : await handleTraineeConnection(event);
-  } catch (error) {
-    return { statusCode: 500, body: JSON.stringify({ error }) };
-  }
+  const promise = as === 'assistant'
+    ? handleAssistantConnection(event, callback)
+    : handleTraineeConnection(event, callback);
+  promise.catch((error: unknown) => callback(null, { statusCode: 500, body: JSON.stringify({ error }) }));
 };
 
 /**
@@ -29,17 +26,15 @@ export const handleConnection: APIGatewayProxyHandler = async event => {
  * - Mark him/her as free/available
  * - Send him/her the trainees awaiting help
  */
-const handleAssistantConnection = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+const handleAssistantConnection = async (event: APIGatewayProxyEvent, callback: Callback<APIGatewayProxyResult>): Promise<void> => {
   const connectionId = getConnectionId(event);
   await peersTable.add({ connectionId, status: 'ASSISTANT_FREE' });
   const waitingTrainees = await peersTable.getByStatus('TRAINEE_WAITING');
 
+  callback(null, { statusCode: 200, body: JSON.stringify({ type: 'assistant' }) });
   // The server needs to return a response before being able to send messages to a peer
   // For that reason, the `send` instruction is deferred, scheduled right after the function return
-  setTimeout(() => {
-    send(connectionId, { type: 'waiting-trainees', peers: waitingTrainees });
-  }, 1);
-  return { statusCode: 200, body: JSON.stringify({ type: 'assistant' }) };
+  await send(connectionId, { type: 'waiting-trainees', peers: waitingTrainees });
 };
 
 /**
@@ -48,14 +43,14 @@ const handleAssistantConnection = async (event: APIGatewayProxyEvent): Promise<A
  * - Mark him/her as waiting-for-help
  * - Send to free/available assistants a new list of trainees awaiting help
  */
-const handleTraineeConnection = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+const handleTraineeConnection = async (event: APIGatewayProxyEvent, callback: Callback<APIGatewayProxyResult>): Promise<void> => {
   await peersTable.add({ connectionId: getConnectionId(event), status: 'TRAINEE_WAITING' });
   const [ waitingTrainees, freeAssistants ] = await Promise.all([
     peersTable.getByStatus('TRAINEE_WAITING'),
     peersTable.getByStatus('ASSISTANT_FREE'),
   ]);
   await Promise.all(freeAssistants.map(assistant => send(assistant.connectionId, { type: 'waiting-trainees', peers: waitingTrainees })));
-  return { statusCode: 200, body: JSON.stringify({ type: 'trainee' }) };
+  callback(null, { statusCode: 200, body: JSON.stringify({ type: 'trainee' }) });
 };
 
 /**

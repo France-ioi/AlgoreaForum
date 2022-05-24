@@ -16,12 +16,15 @@ const gatewayApi = new AWS.ApiGatewayManagementApi({
 });
 
 export const send = async (connectionId: string, message: Message): Promise<void> => {
+  // AWS uses PascalCase for naming convention while we don't. Deactivate the rule for AWS functions and re-enable it right after.
+  /* eslint-disable @typescript-eslint/naming-convention */
   await gatewayApi.postToConnection({
     ConnectionId: connectionId,
     Data: JSON.stringify(message),
   }).promise();
+  /* eslint-enable @typescript-eslint/naming-convention */
 };
 
 export const sendAll = async (connectionIds: string[], message: Message): Promise<void> => {
-  await Promise.all(connectionIds.map((connectionId) => send(connectionId, message)))
+  await Promise.all(connectionIds.map(connectionId => send(connectionId, message)));
 };

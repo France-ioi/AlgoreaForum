@@ -1,17 +1,17 @@
-import AWS from 'aws-sdk'
+import AWS from 'aws-sdk';
 
 const dynamo = new AWS.DynamoDB.DocumentClient({
   region: 'localhost',
   endpoint: 'http://localhost:7000',
 });
-const peersTableName = 'peersTable'
+const peersTableName = 'peersTable';
 
 export interface Peer {
   connectionId: string,
   status: 'ASSISTANT_FREE' | 'ASSISTANT_BUSY' | 'TRAINEE_WAITING' | 'TRAINEE_BUSY',
 }
 export const isPeer = (data: any): data is Peer => data && typeof data === 'object' && typeof data.connectionId === 'string' &&
-  typeof data.status === 'string' && ['ASSISTANT_FREE', 'ASSISTANT_BUSY', 'TRAINEE_WAITING', 'TRAINEE_BUSY'].includes(data.status);
+  typeof data.status === 'string' && [ 'ASSISTANT_FREE', 'ASSISTANT_BUSY', 'TRAINEE_WAITING', 'TRAINEE_BUSY' ].includes(data.status);
 
 class PeersTable {
   constructor(private dynamo: AWS.DynamoDB.DocumentClient) {}
@@ -63,7 +63,7 @@ class PeersTable {
       TableName: peersTableName,
       Key: { connectionId },
     }).promise();
-    if (!result.Item) throw new Error(`peer "${connectionId}" not found`)
+    if (!result.Item) throw new Error(`peer "${connectionId}" not found`);
     return (result.Item) as Peer;
   }
 }

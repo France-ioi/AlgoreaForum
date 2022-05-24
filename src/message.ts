@@ -23,5 +23,5 @@ export const send = async (connectionId: string, message: Message): Promise<void
 };
 
 export const sendAll = async (connectionIds: string[], message: Message): Promise<void> => {
-  await Promise.all(connectionIds.map((connectionId) => send(connectionId, message)))
+  await Promise.all(connectionIds.map(connectionId => send(connectionId, message)));
 };

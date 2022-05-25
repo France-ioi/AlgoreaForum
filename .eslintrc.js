@@ -81,6 +81,7 @@ module.exports = {
         '@typescript-eslint/unbound-method': 'off',
         '@typescript-eslint/explicit-function-return-type': 'off',
         '@typescript-eslint/naming-convention': 'off',
+        '@typescript-eslint/no-unsafe-assignment': 'off',
       }
     },
   ],

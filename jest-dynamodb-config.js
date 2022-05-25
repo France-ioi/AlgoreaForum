@@ -7,7 +7,7 @@ module.exports = {
     BillingMode: 'PAY_PER_REQUEST',
     TableName: 'forumTable',
     TimeToLiveSpecification: {
-      AttributeName: 'expiresAt',
+      AttributeName: 'timeToLive',
       Enabled: true,
     },
     AttributeDefinitions: [{

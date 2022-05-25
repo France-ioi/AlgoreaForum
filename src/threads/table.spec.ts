@@ -10,6 +10,7 @@ describe('Forum table', () => {
     await expect(forumTable.getThreadEvents(participantId, itemId)).resolves.toMatchObject([{
       threadId: expect.any(String),
       timestamp: expect.any(Number),
+      timeToLive: expect.any(Number),
       type: 'thread_opened',
       byUserId: userId,
     }]);

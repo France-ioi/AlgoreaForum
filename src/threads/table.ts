@@ -50,6 +50,7 @@ class ForumTable {
         ...threadEvent,
         threadId,
         timestamp: Date.now(),
+        timeToLive: 1000 * 60 * 60 * 12, // 12 hours
       },
     }).promise();
   }

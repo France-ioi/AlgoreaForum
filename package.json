@@ -26,6 +26,7 @@
   },
   "homepage": "https://github.com/France-ioi/AlgoreaForum#readme",
   "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.100.0",
     "@shelf/jest-dynamodb": "^2.2.4",
     "@types/aws-lambda": "^8.10.95",
     "@types/jest": "^27.5.1",
@@ -36,6 +37,7 @@
     "dynamodb-local": "^0.0.31",
     "eslint": "^8.16.0",
     "husky": "^8.0.1",
+    "io-ts": "^2.2.16",
     "jest": "^28.1.0",
     "lint-staged": "^12.4.1",
     "serverless": "^3.16.0",

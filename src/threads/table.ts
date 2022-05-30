@@ -1,30 +1,35 @@
-import { createDynamoDBClient } from '../dynamodb';
+import { DynamoDB } from '@aws-sdk/client-dynamodb';
+import * as D from 'io-ts/Decoder';
+import { fromDBItem, toDBItem } from '../dynamodb';
+import { decode } from '../decoder';
 
-const tableName = 'forumTable';
+const baseEvent = D.struct({
+  threadId: D.string,
+  timestamp: D.number,
+});
 
-interface BaseEvent {
-  threadId: string,
-  timestamp: number,
-  type: string,
-}
+const threadOpenedEvent = D.struct({
+  type: D.literal('thread_opened'),
+  byUserId: D.string,
+});
 
-interface ThreadOpenedEvent extends BaseEvent {
-  type: 'thread_opened',
-  byUserId: string,
-}
-interface ThreadClosedEvent extends BaseEvent {
-  type: 'thread_closed',
-  byUserId: string,
-}
+const threadClosedEvent = D.struct({
+  type: D.literal('thread_closed'),
+  byUserId: D.string,
+});
 
-export type ThreadEvent =
-  | ThreadOpenedEvent
-  | ThreadClosedEvent;
+const threadEventInput = D.union(threadOpenedEvent, threadClosedEvent);
+type ThreadEventInput = D.TypeOf<typeof threadEventInput>;
+
+const threadEvent = D.intersect(baseEvent)(threadEventInput);
+export type ThreadEvent = D.TypeOf<typeof threadEvent>;
 
 // AWS uses PascalCase for everything, so we need to disable temporarily the casing lint rules
 /* eslint-disable @typescript-eslint/naming-convention */
-class ForumTable {
-  constructor(private db: AWS.DynamoDB.DocumentClient) {}
+export class ForumTable {
+  private tableName = 'forumTable';
+
+  constructor(private db: DynamoDB) {}
 
   private getThreadId(participantId: string, itemId: string): string {
     return `THREAD#${participantId}#${itemId}`;
@@ -33,28 +38,29 @@ class ForumTable {
   async getThreadEvents(participantId: string, itemId: string): Promise<ThreadEvent[]> {
     const threadId = this.getThreadId(participantId, itemId);
     const result = await this.db.query({
-      TableName: tableName,
-      ExpressionAttributeNames: { '#threadId': 'threadId' },
-      ExpressionAttributeValues: { ':threadId': threadId },
-      KeyConditionExpression: '#threadId = :threadId',
-    }).promise();
-    const events = result.Items || [];
-    return events as ThreadEvent[];
+      TableName: this.tableName,
+      ExpressionAttributeValues: { ':tid': { S: threadId } },
+      KeyConditionExpression: 'threadId = :tid',
+    });
+    const events = (result.Items || []).map(fromDBItem);
+    return decode(D.array(threadEvent))(events);
   }
 
-  async addThreadEvent(participantId: string, itemId: string, threadEvent: Omit<ThreadEvent, 'threadId' | 'timestamp'>): Promise<void> {
-    const threadId = this.getThreadId(participantId, itemId);
-    await this.db.put({
-      TableName: tableName,
-      Item: {
-        ...threadEvent,
-        threadId,
-        timestamp: Date.now(),
-        timeToLive: 1000 * 60 * 60 * 12, // 12 hours
-      },
-    }).promise();
+  async addThreadEvent(
+    participantId: string,
+    itemId: string,
+    threadEvent: ThreadEventInput,
+  ): Promise<ThreadEvent> {
+    const createdThreadEvent: ThreadEvent = {
+      ...threadEvent,
+      threadId: this.getThreadId(participantId, itemId),
+      timestamp: Date.now(),
+    };
+    await this.db.putItem({
+      TableName: this.tableName,
+      Item: toDBItem(createdThreadEvent),
+    });
+    return createdThreadEvent;
   }
 }
 /* eslint-enable @typescript-eslint/naming-convention */
-
-export const forumTable = new ForumTable(createDynamoDBClient());

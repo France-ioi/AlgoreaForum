@@ -25,4 +25,5 @@ module.exports = {
       KeyType: 'RANGE',
     }],
   }],
+  options: [ '-sharedDb', '-inMemory' ],
 };

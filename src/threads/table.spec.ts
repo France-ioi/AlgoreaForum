@@ -1,4 +1,3 @@
-import { AttributeValue } from '@aws-sdk/client-dynamodb';
 import { dynamodb, toDBItem } from '../dynamodb';
 import { ForumTable } from './table';
 
@@ -13,10 +12,7 @@ const getAll = (threadId: string) => dynamodb.query({
 });
 const deleteAllItems = async (threadId: string) => {
   const result = await getAll(threadId);
-  await Promise.all((result.Items || []).map(item => dynamodb.deleteItem({
-    TableName: 'forumTable',
-    Key: { threadId: item.threadId as AttributeValue, timestamp: item.timestamp as AttributeValue },
-  })));
+  await Promise.all((result.Items || []).map(item => dynamodb.deleteItem({ TableName: 'forumTable', Key: item })));
 };
 
 describe('Forum table', () => {

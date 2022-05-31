@@ -39,6 +39,10 @@ describe('Forum table', () => {
         byUserId: userId2,
       }]);
     });
+
+    it('should succeed with no matching records', async () => {
+      await expect(forumTable.getThreadEvents('abc', 'def')).resolves.toEqual([]);
+    });
   });
 
   describe('addThreadEvent()', () => {

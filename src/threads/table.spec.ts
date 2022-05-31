@@ -13,10 +13,10 @@ describe('Forum table', () => {
   describe('getThreadEvents()', () => {
     const participantId = 'participantId';
     const itemId = 'itemId';
-    const threadId = `THREAD#${participantId}#${itemId}`;
+    const pk = `THREAD#${participantId}#${itemId}`;
 
     it('should fail at decode step', async () => {
-      await loadFixture([{ threadId, timestamp: 1, type: 'unknown_type' }]);
+      await loadFixture([{ pk, time: 1, type: 'unknown_type' }]);
       await expect(forumTable.getThreadEvents(participantId, itemId)).rejects.toBeInstanceOf(Error);
     });
 
@@ -24,17 +24,17 @@ describe('Forum table', () => {
       const userId1 = 'userId1';
       const userId2 = 'userId2';
       await loadFixture([
-        { threadId, timestamp: 2, type: 'thread_opened', byUserId: userId1 },
-        { threadId, timestamp: 3, type: 'thread_closed', byUserId: userId2 },
+        { pk, time: 2, type: 'thread_opened', byUserId: userId1 },
+        { pk, time: 3, type: 'thread_closed', byUserId: userId2 },
       ]);
       await expect(forumTable.getThreadEvents(participantId, itemId)).resolves.toEqual([{
-        threadId,
-        timestamp: 2,
+        pk,
+        time: 2,
         type: 'thread_opened',
         byUserId: userId1,
       }, {
-        threadId,
-        timestamp: 3,
+        pk,
+        time: 3,
         type: 'thread_closed',
         byUserId: userId2,
       }]);
@@ -48,7 +48,7 @@ describe('Forum table', () => {
   describe('addThreadEvent()', () => {
     const participantId = 'addThreadParticipantId';
     const itemId = 'addThreadItemId';
-    const threadId = `THREAD#${participantId}#${itemId}`;
+    const pk = `THREAD#${participantId}#${itemId}`;
     const userId1 = 'userId1';
 
     it('should add an event', async () => {
@@ -56,8 +56,8 @@ describe('Forum table', () => {
       await forumTable.addThreadEvent(participantId, itemId, { type: 'thread_opened', byUserId: userId1 });
       await expect(getAll()).resolves.toMatchObject({
         Items: [{
-          threadId: { S: threadId },
-          timestamp: { N: expect.stringMatching(/^[0-9.]+$/) },
+          pk: { S: pk },
+          time: { N: expect.stringMatching(/^[0-9.]+$/) },
           type: { S: 'thread_opened' },
           byUserId: { S: userId1 },
         }],

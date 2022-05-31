@@ -7,21 +7,21 @@ module.exports = {
     BillingMode: 'PAY_PER_REQUEST',
     TableName: 'forumTable',
     TimeToLiveSpecification: {
-      AttributeName: 'timeToLive',
+      AttributeName: 'ttl',
       Enabled: true,
     },
     AttributeDefinitions: [{
-      AttributeName: 'threadId',
+      AttributeName: 'pk',
       AttributeType: 'S',
     }, {
-      AttributeName: 'timestamp',
+      AttributeName: 'time',
       AttributeType: 'N',
     }],
     KeySchema: [{
-      AttributeName: 'threadId',
+      AttributeName: 'pk',
       KeyType: 'HASH',
     }, {
-      AttributeName: 'timestamp',
+      AttributeName: 'time',
       KeyType: 'RANGE',
     }],
   }],

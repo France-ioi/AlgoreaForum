@@ -4,8 +4,8 @@ import { fromDBItem, toDBItem } from '../dynamodb';
 import { decode } from '../decoder';
 
 const baseEventDecoder = D.struct({
-  threadId: D.string,
-  timestamp: D.number,
+  pk: D.string,
+  time: D.number,
 });
 
 const threadOpenedEventDecoder = D.struct({
@@ -40,7 +40,7 @@ export class ForumTable {
     const result = await this.db.query({
       TableName: this.tableName,
       ExpressionAttributeValues: { ':tid': { S: threadId } },
-      KeyConditionExpression: 'threadId = :tid',
+      KeyConditionExpression: 'pk = :tid',
     });
     const events = (result.Items || []).map(fromDBItem);
     return decode(D.array(threadEventDecoder))(events);
@@ -53,8 +53,8 @@ export class ForumTable {
   ): Promise<ThreadEvent> {
     const createdThreadEvent: ThreadEvent = {
       ...threadEvent,
-      threadId: this.getThreadId(participantId, itemId),
-      timestamp: Date.now(),
+      pk: this.getThreadId(participantId, itemId),
+      time: Date.now(),
     };
     await this.db.putItem({
       TableName: this.tableName,

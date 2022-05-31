@@ -17,10 +17,10 @@ export const getAll = (): Promise<QueryCommandOutput> => dynamodb.scan({ TableNa
 export const deleteAll = async (): Promise<void> => {
   const result = await getAll();
   await Promise.all((result.Items || []).map(item => {
-    if (!item.threadId || !item.timestamp) return;
+    if (!item.pk || !item.time) return;
     return dynamodb.deleteItem({
       TableName: 'forumTable',
-      Key: { threadId: item.threadId, timestamp: item.timestamp },
+      Key: { pk: item.pk, time: item.time },
     });
   }));
 };

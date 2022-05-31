@@ -3,26 +3,26 @@ import * as D from 'io-ts/Decoder';
 import { fromDBItem, toDBItem } from '../dynamodb';
 import { decode } from '../decoder';
 
-const baseEvent = D.struct({
+const baseEventDecoder = D.struct({
   threadId: D.string,
   timestamp: D.number,
 });
 
-const threadOpenedEvent = D.struct({
+const threadOpenedEventDecoder = D.struct({
   type: D.literal('thread_opened'),
   byUserId: D.string,
 });
 
-const threadClosedEvent = D.struct({
+const threadClosedEventDecoder = D.struct({
   type: D.literal('thread_closed'),
   byUserId: D.string,
 });
 
-const threadEventInput = D.union(threadOpenedEvent, threadClosedEvent);
+const threadEventInput = D.union(threadOpenedEventDecoder, threadClosedEventDecoder);
 type ThreadEventInput = D.TypeOf<typeof threadEventInput>;
 
-const threadEvent = D.intersect(baseEvent)(threadEventInput);
-export type ThreadEvent = D.TypeOf<typeof threadEvent>;
+const threadEventDecoder = D.intersect(baseEventDecoder)(threadEventInput);
+export type ThreadEvent = D.TypeOf<typeof threadEventDecoder>;
 
 // AWS uses PascalCase for everything, so we need to disable temporarily the casing lint rules
 /* eslint-disable @typescript-eslint/naming-convention */
@@ -43,7 +43,7 @@ export class ForumTable {
       KeyConditionExpression: 'threadId = :tid',
     });
     const events = (result.Items || []).map(fromDBItem);
-    return decode(D.array(threadEvent))(events);
+    return decode(D.array(threadEventDecoder))(events);
   }
 
   async addThreadEvent(

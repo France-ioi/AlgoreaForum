@@ -75,7 +75,7 @@ describe('Forum table', () => {
       await expect(getAll(threadId)).resolves.toMatchObject({
         Items: [{
           threadId: { S: threadId },
-          timestamp: { N: expect.any(String) },
+          timestamp: { N: expect.stringMatching(/^[0-9.]+$/) },
           type: { S: 'thread_opened' },
           byUserId: { S: userId1 },
         }],

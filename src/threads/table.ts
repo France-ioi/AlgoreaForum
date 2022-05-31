@@ -1,5 +1,6 @@
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import * as D from 'io-ts/Decoder';
+import { pipe } from 'fp-ts/function';
 import { fromDBItem, toDBItem } from '../dynamodb';
 import { decode } from '../decoder';
 
@@ -21,7 +22,10 @@ const threadClosedEventDecoder = D.struct({
 const threadEventInput = D.union(threadOpenedEventDecoder, threadClosedEventDecoder);
 type ThreadEventInput = D.TypeOf<typeof threadEventInput>;
 
-const threadEventDecoder = D.intersect(baseEventDecoder)(threadEventInput);
+const threadEventDecoder = pipe(
+  threadEventInput,
+  D.intersect(baseEventDecoder),
+);
 export type ThreadEvent = D.TypeOf<typeof threadEventDecoder>;
 
 // AWS uses PascalCase for everything, so we need to disable temporarily the casing lint rules

@@ -1,4 +1,6 @@
 import type { APIGatewayProxyEvent } from 'aws-lambda';
+import * as D from 'io-ts/Decoder';
+import { decode } from './decoder';
 
 export const getConnectionId = (event: APIGatewayProxyEvent): string => {
   const id = event.requestContext.connectionId;
@@ -16,6 +18,20 @@ export const getPayload = (event: APIGatewayProxyEvent): Record<string, unknown>
     if (!isObject(result)) throw new Error();
     return result;
   } catch (e) {
-    throw { statusCode: 400, body: 'A payload object is required' };
+    throw new Error('A payload object is required');
   }
+};
+
+const tokenDataDecoder = D.struct({
+  participantId: D.string,
+  itemId: D.string,
+  userId: D.string,
+  isMine: D.boolean,
+  canWatchParticipant: D.boolean,
+});
+export type TokenData = D.TypeOf<typeof tokenDataDecoder>;
+export const extractTokenData = (event: APIGatewayProxyEvent): TokenData => {
+  // FIXME: For now, the token is provided as an object but later it will be an actual token (string)
+  const { token } = getPayload(event);
+  return decode(tokenDataDecoder)(token);
 };

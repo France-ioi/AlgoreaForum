@@ -90,6 +90,11 @@ functions:
       - httpApi:
           path: /main.js
           method: get
+  open-thread:
+    handler: src/threads/handlers.openThread
+    events:
+      - websocket:
+          route: open-thread
 plugins:
   - serverless-plugin-typescript
   - serverless-dynamodb-local

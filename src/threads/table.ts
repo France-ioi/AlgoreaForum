@@ -20,7 +20,18 @@ const threadClosedEventDecoder = D.struct({
   byUserId: D.string,
 });
 
-const threadEventInput = D.union(threadOpenedEventDecoder, threadClosedEventDecoder);
+const subscribeEventDecoder = D.struct({
+  type: D.literal('subscribe'),
+  userId: D.string,
+  connectionId: D.string,
+  ttl: D.number,
+});
+
+const threadEventInput = D.union(
+  threadOpenedEventDecoder,
+  threadClosedEventDecoder,
+  subscribeEventDecoder,
+);
 type ThreadEventInput = D.TypeOf<typeof threadEventInput>;
 
 const threadEventDecoder = pipe(

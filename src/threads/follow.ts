@@ -1,6 +1,7 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
 import { dynamodb } from '../dynamodb';
 import { extractTokenData, getConnectionId } from '../parsers';
+import { send } from './messages';
 import { ForumTable } from './table';
 
 const forumTable = new ForumTable(dynamodb);
@@ -21,7 +22,8 @@ export const handler: APIGatewayProxyHandler = async event => {
       userId,
     });
 
-    // TODO: Send the list of 20 last elements
+    const events = await forumTable.getThreadEvents(participantId, itemId, { limit: 20, asc: false });
+    await send(connectionId, events);
 
     return { statusCode: 201, body: '' };
   } catch (error) {

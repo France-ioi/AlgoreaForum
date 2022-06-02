@@ -55,6 +55,41 @@ describe('Forum table', () => {
       });
       await expect(forumTable.getThreadEvents('abc', 'def')).rejects.toBe(error);
     });
+
+    it('should retrieve events in reverse order', async () => {
+      const userId1 = 'userId1';
+      const userId2 = 'userId2';
+      await loadFixture([
+        { pk, time: 2, type: 'thread_opened', byUserId: userId1 },
+        { pk, time: 3, type: 'thread_closed', byUserId: userId2 },
+      ]);
+      await expect(forumTable.getThreadEvents(participantId, itemId, { asc: false })).resolves.toEqual([{
+        pk,
+        time: 3,
+        type: 'thread_closed',
+        byUserId: userId2,
+      }, {
+        pk,
+        time: 2,
+        type: 'thread_opened',
+        byUserId: userId1,
+      }]);
+    });
+
+    it('should apply a limit', async () => {
+      const userId1 = 'userId1';
+      const userId2 = 'userId2';
+      await loadFixture([
+        { pk, time: 2, type: 'thread_opened', byUserId: userId1 },
+        { pk, time: 3, type: 'thread_closed', byUserId: userId2 },
+      ]);
+      await expect(forumTable.getThreadEvents(participantId, itemId, { limit: 1 })).resolves.toEqual([{
+        pk,
+        time: 2,
+        type: 'thread_opened',
+        byUserId: userId1,
+      }]);
+    });
   });
 
   describe('addThreadEvent()', () => {

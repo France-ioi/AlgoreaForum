@@ -44,12 +44,14 @@ export class ForumTable {
    * Retrieves all the thread event items for a couple participantId+itemId in ascending order.
    * Limit is currently 1MB of data.
    */
-  async getThreadEvents(participantId: string, itemId: string): Promise<ThreadEvent[]> {
+  async getThreadEvents(participantId: string, itemId: string, options: { limit?: number, asc?: boolean } = {}): Promise<ThreadEvent[]> {
     const threadId = this.getThreadId(participantId, itemId);
     const result = await this.db.query({
       TableName: this.tableName,
       ExpressionAttributeValues: { ':tid': { S: threadId } },
       KeyConditionExpression: 'pk = :tid',
+      ScanIndexForward: options.asc,
+      Limit: options.limit,
     });
     const events = (result.Items || []).map(fromDBItem);
     return events.map(decode(threadEventDecoder)).filter(isNotNull);

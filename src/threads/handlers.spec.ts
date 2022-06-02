@@ -11,12 +11,13 @@ describe('threads', () => {
   const addThreadEventStub = jest.spyOn(ForumTable.prototype, 'addThreadEvent');
   addThreadEventStub.mockReturnValue(Promise.resolve({} as any));
 
-  const tokenData = (n: number): parsers.TokenData => ({
+  const tokenData = (n: number, rest?: Partial<parsers.TokenData>): parsers.TokenData => ({
     participantId: `openThreadParticipantId-${n}`,
     itemId: `openThreadItemId-${n}`,
     userId: `openThreadUserId-${n}`,
     isMine: true,
     canWatchParticipant: true,
+    ...rest,
   });
 
   beforeEach(() => {
@@ -58,8 +59,18 @@ describe('threads', () => {
       );
     });
 
+    it('should forbid action when thread does not belong to the user and s-he cannot watch the participant', async () => {
+      const data = tokenData(3, { isMine: false, canWatchParticipant: false });
+      getTokenDataStub.mockReturnValueOnce(data);
+      await expect(openThread(mockEvent(), mockContext(), mockCallback())).resolves.toEqual({
+        statusCode: 403,
+        body: '',
+      });
+      expect(addThreadEventStub).not.toHaveBeenCalled();
+    });
+
     it('should add an event "thread_opened" to the forum table', async () => {
-      const data = tokenData(3);
+      const data = tokenData(4);
       getTokenDataStub.mockReturnValueOnce(data);
       await openThread(mockEvent(), mockContext(), mockCallback());
       expect(addThreadEventStub).toHaveBeenCalledTimes(1);

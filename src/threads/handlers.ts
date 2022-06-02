@@ -8,7 +8,9 @@ const forumTable = new ForumTable(dynamodb);
 export const openThread: APIGatewayProxyHandler = async event => {
   try {
     const tokenData = extractTokenData(event);
-    const { participantId, itemId, userId } = tokenData;
+    const { participantId, itemId, userId, isMine, canWatchParticipant } = tokenData;
+
+    if (!isMine && !canWatchParticipant) return { statusCode: 403, body: '' };
 
     await forumTable.addThreadEvent(participantId, itemId, {
       type: 'thread_opened',

@@ -1,5 +1,5 @@
 import * as parsers from '../parsers';
-import { openThread } from './handlers';
+import { handler } from './openThread';
 import { ForumTable } from './table';
 
 const mockEvent = (): any => ({});
@@ -29,7 +29,7 @@ describe('threads', () => {
       getTokenDataStub.mockImplementationOnce(() => {
         throw new Error('...');
       });
-      await expect(openThread(mockEvent(), mockContext(), mockCallback())).resolves.toEqual({
+      await expect(handler(mockEvent(), mockContext(), mockCallback())).resolves.toEqual({
         statusCode: 401,
         body: '',
       });
@@ -37,7 +37,7 @@ describe('threads', () => {
 
     it('should succeed (201) when token data is valid', async () => {
       getTokenDataStub.mockReturnValueOnce(tokenData(1));
-      await expect(openThread(mockEvent(), mockContext(), mockCallback())).resolves.toEqual({
+      await expect(handler(mockEvent(), mockContext(), mockCallback())).resolves.toEqual({
         statusCode: 201,
         body: '',
       });
@@ -47,7 +47,7 @@ describe('threads', () => {
       const data = tokenData(2);
       getTokenDataStub.mockReturnValueOnce(data);
       addThreadEventStub.mockReturnValueOnce(Promise.reject(new Error('...')));
-      await expect(openThread(mockEvent(), mockContext(), mockCallback())).resolves.toEqual({
+      await expect(handler(mockEvent(), mockContext(), mockCallback())).resolves.toEqual({
         statusCode: 401,
         body: '',
       });
@@ -62,7 +62,7 @@ describe('threads', () => {
     it('should forbid action when thread does not belong to the user and s-he cannot watch the participant', async () => {
       const data = tokenData(3, { isMine: false, canWatchParticipant: false });
       getTokenDataStub.mockReturnValueOnce(data);
-      await expect(openThread(mockEvent(), mockContext(), mockCallback())).resolves.toEqual({
+      await expect(handler(mockEvent(), mockContext(), mockCallback())).resolves.toEqual({
         statusCode: 403,
         body: '',
       });
@@ -72,7 +72,7 @@ describe('threads', () => {
     it('should add an event "thread_opened" to the forum table', async () => {
       const data = tokenData(4);
       getTokenDataStub.mockReturnValueOnce(data);
-      await openThread(mockEvent(), mockContext(), mockCallback());
+      await handler(mockEvent(), mockContext(), mockCallback());
       expect(addThreadEventStub).toHaveBeenCalledTimes(1);
       expect(addThreadEventStub).toHaveBeenLastCalledWith(
         data.participantId,

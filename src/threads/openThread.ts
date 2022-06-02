@@ -5,7 +5,7 @@ import { dynamodb } from '../dynamodb';
 
 const forumTable = new ForumTable(dynamodb);
 
-export const openThread: APIGatewayProxyHandler = async event => {
+export const handler: APIGatewayProxyHandler = async event => {
   try {
     const tokenData = extractTokenData(event);
     const { participantId, itemId, userId, isMine, canWatchParticipant } = tokenData;

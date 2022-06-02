@@ -91,7 +91,7 @@ functions:
           path: /main.js
           method: get
   open-thread:
-    handler: src/threads/handlers.openThread
+    handler: src/threads/openThread.handler
     events:
       - websocket:
           route: open-thread

@@ -16,7 +16,7 @@ export const handler: APIGatewayProxyHandler = async event => {
     const { participantId, itemId, userId } = tokenData;
 
     await forumTable.addThreadEvent(participantId, itemId, {
-      type: 'subscribe',
+      type: 'follow',
       connectionId,
       ttl: 12 * hours, // in seconds
       userId,

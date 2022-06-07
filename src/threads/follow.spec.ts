@@ -85,7 +85,7 @@ describe('follow', () => {
     it('should have added a thread event "follow"', () => {
       expect(addThreadEventStub).toHaveBeenCalledTimes(1);
       expect(addThreadEventStub).toHaveBeenLastCalledWith(data.participantId, data.itemId, {
-        type: 'subscribe',
+        type: 'follow',
         connectionId,
         userId: data.userId,
         ttl: expect.any(Number),

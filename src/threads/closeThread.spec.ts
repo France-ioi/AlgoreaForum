@@ -1,13 +1,25 @@
+const sendAllStub = jest.fn(() => Promise.resolve());
+jest.mock('./messages.ts', () => ({
+  sendAll: sendAllStub,
+}));
+import { dynamodb } from '../dynamodb';
 import * as parsers from '../parsers';
+import { deleteAll } from '../testutils/db';
 import { mockContext, mockEvent } from '../testutils/lambda';
 import { tokenData } from '../testutils/mocks';
 import { handler } from './closeThread';
 import { ForumTable } from './table';
 
 describe('close thread', () => {
+  const forumTable = new ForumTable(dynamodb);
   const getTokenDataStub = jest.spyOn(parsers, 'extractTokenData');
   const addThreadEventStub = jest.spyOn(ForumTable.prototype, 'addThreadEvent');
   addThreadEventStub.mockReturnValue(Promise.resolve({} as any));
+
+  beforeEach(async () => {
+    jest.resetAllMocks();
+    await deleteAll();
+  });
 
   it('should fail when token data is invalid', async () => {
     getTokenDataStub.mockImplementationOnce(() => {
@@ -44,5 +56,27 @@ describe('close thread', () => {
       data.itemId,
       { type: 'thread_closed', byUserId: data.userId },
     );
+  });
+
+  it('should notify all followers', async () => {
+    const data = tokenData(1);
+    addThreadEventStub.mockRestore();
+    getTokenDataStub.mockReturnValueOnce(data);
+    const followerUserId = 'followerUserId';
+    const followerConnectionId = 'followerConnectionId';
+    await forumTable.addThreadEvent(data.participantId, data.itemId, {
+      type: 'follow',
+      userId: followerUserId,
+      connectionId: followerConnectionId,
+      ttl: 12,
+    });
+    await handler(mockEvent(), mockContext());
+    expect(sendAllStub).toHaveBeenCalledTimes(1);
+    expect(sendAllStub).toHaveBeenLastCalledWith([ followerConnectionId ], [{
+      pk: expect.any(String),
+      time: expect.any(Number),
+      type: 'thread_closed',
+      byUserId: data.userId,
+    }]);
   });
 });

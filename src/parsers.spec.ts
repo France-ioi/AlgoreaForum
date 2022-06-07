@@ -27,4 +27,17 @@ describe('parsers', () => {
       expect(result).toEqual(decodedValue);
     });
   });
+
+  describe('getConnectionId()', () => {
+    it('should throw when no data', () => {
+      expect(() => parsers.getConnectionId({ requestContext: {} } as APIGatewayProxyEvent)).toThrow(Error);
+      expect(() => parsers.getConnectionId({ requestContext: { connectionId: '' } } as APIGatewayProxyEvent)).toThrow(Error);
+      expect(() => parsers.getConnectionId({ requestContext: { connectionId: undefined } } as APIGatewayProxyEvent)).toThrow(Error);
+    });
+
+    it('should return connection id', () => {
+      const connectionId = 'connectionId';
+      expect(parsers.getConnectionId({ requestContext: { connectionId } } as APIGatewayProxyEvent)).toBe(connectionId);
+    });
+  });
 });

@@ -55,11 +55,22 @@ export class ForumTable {
    * Retrieves all the thread event items for a couple participantId+itemId in ascending order.
    * Limit is currently 1MB of data.
    */
-  async getThreadEvents(participantId: string, itemId: string, options: { limit?: number, asc?: boolean } = {}): Promise<ThreadEvent[]> {
+  async getThreadEvents(
+    participantId: string,
+    itemId: string,
+    options: { limit?: number, asc?: boolean, type?: ThreadEvent['type'] } = {},
+  ): Promise<ThreadEvent[]> {
     const threadId = this.getThreadId(participantId, itemId);
     const result = await this.db.query({
       TableName: this.tableName,
-      ExpressionAttributeValues: { ':tid': { S: threadId } },
+      ExpressionAttributeValues: {
+        ':tid': { S: threadId },
+        ...(options.type && { ':type': { S: options.type } }),
+      },
+      ...(options.type && {
+        FilterExpression: '#type = :type',
+        ExpressionAttributeNames: { '#type': 'type' }, // 'type' is a reserved keyword in dynamodb
+      }),
       KeyConditionExpression: 'pk = :tid',
       ScanIndexForward: options.asc,
       Limit: options.limit,

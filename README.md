@@ -12,3 +12,10 @@ npx sls dynamodb install
 ```sh
 npm start
 ```
+
+
+## Test
+
+```sh
+npm test
+```

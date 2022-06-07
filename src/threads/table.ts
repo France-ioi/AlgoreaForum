@@ -52,7 +52,7 @@ export class ForumTable {
       KeyConditionExpression: 'pk = :tid',
     });
     const events = (result.Items || []).map(fromDBItem);
-    return events.map(decode(threadEventDecoder, null)).filter(isNotNull);
+    return events.map(decode(threadEventDecoder)).filter(isNotNull);
   }
 
   async addThreadEvent(

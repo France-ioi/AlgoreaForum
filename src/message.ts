@@ -1,4 +1,4 @@
-import AWS from 'aws-sdk';
+import { ApiGatewayManagementApi } from '@aws-sdk/client-apigatewaymanagementapi';
 import type { Peer } from './db/peers';
 
 export type Message =
@@ -10,7 +10,7 @@ export type Message =
   | { type: 'accept-offer', trainee: Peer }
   | { type: 'help-ended' }; // sent to trainees when assistants end the process. Might be reused for other purposes later on.
 
-const gatewayApi = new AWS.ApiGatewayManagementApi({
+const gatewayApi = new ApiGatewayManagementApi({
   apiVersion: '2018-11-29',
   endpoint: 'http://localhost:3001',
 });
@@ -20,8 +20,8 @@ export const send = async (connectionId: string, message: Message): Promise<void
   /* eslint-disable @typescript-eslint/naming-convention */
   await gatewayApi.postToConnection({
     ConnectionId: connectionId,
-    Data: JSON.stringify(message),
-  }).promise();
+    Data: Buffer.from(JSON.stringify(message)),
+  });
   /* eslint-enable @typescript-eslint/naming-convention */
 };
 

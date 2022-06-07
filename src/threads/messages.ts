@@ -1,4 +1,3 @@
-// import AWS from 'aws-sdk';
 import { ApiGatewayManagementApi } from '@aws-sdk/client-apigatewaymanagementapi';
 import type { ThreadEvent } from './table';
 

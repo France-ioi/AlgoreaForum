@@ -8,6 +8,10 @@ const forumTable = new ForumTable(dynamodb);
 const seconds = 1;
 const minutes = 60 * seconds;
 const hours = 60 * minutes;
+/**
+ * ttl is the TimeToLive value of the db entry expressed in seconds.
+ */
+export const followTtl = 12 * hours;
 
 export const handler: SocketHandler = async event => {
   const connectionId = getConnectionId(event);
@@ -17,7 +21,7 @@ export const handler: SocketHandler = async event => {
   await forumTable.addThreadEvent(participantId, itemId, {
     type: 'follow',
     connectionId,
-    ttl: 12 * hours, // in seconds
+    ttl: followTtl,
     userId,
   });
 

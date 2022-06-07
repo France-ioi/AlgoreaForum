@@ -26,6 +26,7 @@ const followEventDecoder = D.struct({
   connectionId: D.string,
   ttl: D.number,
 });
+export type FollowEvent = D.TypeOf<typeof followEventDecoder>;
 
 const threadEventInput = D.union(
   threadOpenedEventDecoder,
@@ -77,6 +78,11 @@ export class ForumTable {
     });
     const events = (result.Items || []).map(fromDBItem);
     return events.map(decode(threadEventDecoder)).filter(isNotNull);
+  }
+
+  async getFollowers(participantId: string, itemId: string): Promise<FollowEvent[]> {
+    const events = await this.getThreadEvents(participantId, itemId, { type: 'follow' });
+    return events.map(decode(followEventDecoder)).filter(isNotNull);
   }
 
   async addThreadEvent(

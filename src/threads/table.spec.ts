@@ -18,8 +18,10 @@ describe('Forum table', () => {
     const queryStub = jest.spyOn(forumTable.db, 'query');
 
     it('should omit wrong entries', async () => {
-      await loadFixture([{ pk, time: 1, type: 'unknown_type' }]);
-      await expect(forumTable.getThreadEvents(participantId, itemId)).resolves.toEqual([]);
+      await loadFixture([{ pk, time: 1, type: 'unknown_type' }, { pk, time: 2, type: 'thread_opened', byUserId: '12' }]);
+      await expect(forumTable.getThreadEvents(participantId, itemId)).resolves.toEqual([
+        { pk, time: 2, type: 'thread_opened', byUserId: '12' },
+      ]);
     });
 
     it('should succeed retrieving multiple thread events', async () => {

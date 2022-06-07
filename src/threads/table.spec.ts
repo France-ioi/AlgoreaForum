@@ -15,9 +15,9 @@ describe('Forum table', () => {
     const itemId = 'itemId';
     const pk = `THREAD#${participantId}#${itemId}`;
 
-    it('should fail at decode step', async () => {
+    it('should omit wrong entries', async () => {
       await loadFixture([{ pk, time: 1, type: 'unknown_type' }]);
-      await expect(forumTable.getThreadEvents(participantId, itemId)).rejects.toBeInstanceOf(Error);
+      await expect(forumTable.getThreadEvents(participantId, itemId)).resolves.toEqual([]);
     });
 
     it('should succeed retrieving multiple thread events', async () => {

@@ -2,7 +2,8 @@ import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import * as D from 'io-ts/Decoder';
 import { pipe } from 'fp-ts/function';
 import { fromDBItem, toDBItem } from '../dynamodb';
-import { decode } from '../decoder';
+import { decode } from '../utils/decode';
+import { isNotNull } from '../utils/predicates';
 
 const baseEventDecoder = D.struct({
   pk: D.string,
@@ -51,7 +52,7 @@ export class ForumTable {
       KeyConditionExpression: 'pk = :tid',
     });
     const events = (result.Items || []).map(fromDBItem);
-    return decode(D.array(threadEventDecoder))(events);
+    return events.map(decode(threadEventDecoder, null)).filter(isNotNull);
   }
 
   async addThreadEvent(

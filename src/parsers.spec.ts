@@ -1,6 +1,6 @@
 const decodeStub = jest.fn((input: any) => input);
 const fakeDecode = (_decode: any) => decodeStub;
-jest.mock('./decoder.ts', () => ({
+jest.mock('./utils/decode.ts', () => ({
   decode: fakeDecode,
 }));
 import { APIGatewayProxyEvent } from 'aws-lambda';

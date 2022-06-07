@@ -1,6 +1,6 @@
 import type { APIGatewayProxyEvent } from 'aws-lambda';
 import * as D from 'io-ts/Decoder';
-import { decode } from './decoder';
+import { decode } from './utils/decode';
 
 export const getConnectionId = (event: APIGatewayProxyEvent): string => {
   const id = event.requestContext.connectionId;
@@ -33,5 +33,7 @@ export type TokenData = D.TypeOf<typeof tokenDataDecoder>;
 export const extractTokenData = (event: APIGatewayProxyEvent): TokenData => {
   // FIXME: For now, the token is provided as an object but later it will be an actual token (string)
   const { token } = getPayload(event);
-  return decode(tokenDataDecoder)(token);
+  const tokenData = decode(tokenDataDecoder)(token);
+  if (!tokenData) throw new Error('Invalid token data');
+  return tokenData;
 };

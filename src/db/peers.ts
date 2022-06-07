@@ -1,9 +1,6 @@
-import AWS from 'aws-sdk';
+import { DynamoDB } from '@aws-sdk/client-dynamodb';
+import { dynamodb, fromDBItem, toDBItem } from '../dynamodb';
 
-const dynamo = new AWS.DynamoDB.DocumentClient({
-  region: 'localhost',
-  endpoint: 'http://localhost:7000',
-});
 const peersTableName = 'peersTable';
 
 export interface Peer {
@@ -23,7 +20,7 @@ export const isPeer = (data: any): data is Peer => {
 // AWS uses PascalCase for everything, so we need to disable temporarily the casing lint rules
 /* eslint-disable @typescript-eslint/naming-convention */
 class PeersTable {
-  constructor(private dynamo: AWS.DynamoDB.DocumentClient) {}
+  constructor(private dynamo: DynamoDB) {}
 
   async add(peer: Peer): Promise<void> {
     const seconds = 1000;
@@ -31,51 +28,51 @@ class PeersTable {
     const hours = 60*minutes;
     const days = 24*hours;
 
-    await this.dynamo.put({
+    await this.dynamo.putItem({
       TableName: peersTableName,
-      Item: {
+      Item: toDBItem({
         connectionId: peer.connectionId,
         status: peer.status,
         expiresAt: 2*days, // for now
-      },
-    }).promise();
+      }),
+    });
   }
 
   async update(connectionId: string, status: Peer['status']): Promise<void> {
-    await this.dynamo.update({
+    await this.dynamo.updateItem({
       TableName: peersTableName,
-      Key: { connectionId },
+      Key: toDBItem({ connectionId }),
       AttributeUpdates: {
-        status: { Value: status }
+        status: { Value: { S: status } }
       },
-    }).promise();
+    });
   }
 
   async delete(connectionId: string): Promise<void> {
-    await this.dynamo.delete({
+    await this.dynamo.deleteItem({
       TableName: peersTableName,
-      Key: { connectionId },
-    }).promise();
+      Key: toDBItem({ connectionId }),
+    });
   }
 
   async getByStatus(status: Peer['status']): Promise<Peer[]> {
     const result = await this.dynamo.scan({
       TableName: peersTableName,
       ExpressionAttributeNames: { '#status': 'status' },
-      ExpressionAttributeValues: { ':status': status },
+      ExpressionAttributeValues: { ':status': { S: status } },
       FilterExpression: '#status = :status',
-    }).promise();
-    return (result.Items ?? []) as Peer[];
+    });
+    return (result.Items ?? []).map(fromDBItem) as unknown[] as Peer[];
   }
   async get(connectionId: string): Promise<Peer> {
-    const result = await this.dynamo.get({
+    const result = await this.dynamo.getItem({
       TableName: peersTableName,
-      Key: { connectionId },
-    }).promise();
+      Key: toDBItem({ connectionId }),
+    });
     if (!result.Item) throw new Error(`peer "${connectionId}" not found`);
-    return (result.Item) as Peer;
+    return fromDBItem(result.Item) as unknown as Peer;
   }
 }
 /* eslint-enable @typescript-eslint/naming-convention */
 
-export const peersTable = new PeersTable(dynamo);
+export const peersTable = new PeersTable(dynamodb);

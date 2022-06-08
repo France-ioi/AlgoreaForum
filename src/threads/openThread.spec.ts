@@ -4,7 +4,6 @@ import { ForumTable } from './table';
 
 const mockEvent = (): any => ({});
 const mockContext = (): any => ({});
-const mockCallback = (): any => (() => {});
 
 describe('threads', () => {
   const getTokenDataStub = jest.spyOn(parsers, 'extractTokenData');
@@ -29,28 +28,19 @@ describe('threads', () => {
       getTokenDataStub.mockImplementationOnce(() => {
         throw new Error('...');
       });
-      await expect(handler(mockEvent(), mockContext(), mockCallback())).resolves.toEqual({
-        statusCode: 401,
-        body: '',
-      });
+      await expect(handler(mockEvent(), mockContext())).rejects.toThrow(Error);
     });
 
     it('should succeed (201) when token data is valid', async () => {
       getTokenDataStub.mockReturnValueOnce(tokenData(1));
-      await expect(handler(mockEvent(), mockContext(), mockCallback())).resolves.toEqual({
-        statusCode: 201,
-        body: '',
-      });
+      await expect(handler(mockEvent(), mockContext())).resolves.not.toThrow();
     });
 
     it('should fail gracefully when adding thread opened event fails', async () => {
       const data = tokenData(2);
       getTokenDataStub.mockReturnValueOnce(data);
       addThreadEventStub.mockReturnValueOnce(Promise.reject(new Error('...')));
-      await expect(handler(mockEvent(), mockContext(), mockCallback())).resolves.toEqual({
-        statusCode: 401,
-        body: '',
-      });
+      await expect(handler(mockEvent(), mockContext())).rejects.toThrow(Error);
       expect(addThreadEventStub).toHaveBeenCalledTimes(1);
       expect(addThreadEventStub).toHaveBeenLastCalledWith(
         data.participantId,
@@ -62,17 +52,14 @@ describe('threads', () => {
     it('should forbid action when thread does not belong to the user and s-he cannot watch the participant', async () => {
       const data = tokenData(3, { isMine: false, canWatchParticipant: false });
       getTokenDataStub.mockReturnValueOnce(data);
-      await expect(handler(mockEvent(), mockContext(), mockCallback())).resolves.toEqual({
-        statusCode: 403,
-        body: '',
-      });
+      await expect(handler(mockEvent(), mockContext())).rejects.toThrow(Error);
       expect(addThreadEventStub).not.toHaveBeenCalled();
     });
 
     it('should add an event "thread_opened" to the forum table', async () => {
       const data = tokenData(4);
       getTokenDataStub.mockReturnValueOnce(data);
-      await handler(mockEvent(), mockContext(), mockCallback());
+      await handler(mockEvent(), mockContext());
       expect(addThreadEventStub).toHaveBeenCalledTimes(1);
       expect(addThreadEventStub).toHaveBeenLastCalledWith(
         data.participantId,

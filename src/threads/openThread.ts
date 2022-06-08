@@ -1,24 +1,18 @@
-import type { APIGatewayProxyHandler } from 'aws-lambda';
+import type { SocketHandler } from '../utils/types';
 import { ForumTable } from './table';
 import { extractTokenData } from '../parsers';
 import { dynamodb } from '../dynamodb';
 
 const forumTable = new ForumTable(dynamodb);
 
-export const handler: APIGatewayProxyHandler = async event => {
-  try {
-    const tokenData = extractTokenData(event);
-    const { participantId, itemId, userId, isMine, canWatchParticipant } = tokenData;
+export const handler: SocketHandler = async event => {
+  const tokenData = extractTokenData(event);
+  const { participantId, itemId, userId, isMine, canWatchParticipant } = tokenData;
 
-    if (!isMine && !canWatchParticipant) return { statusCode: 403, body: '' };
+  if (!isMine && !canWatchParticipant) throw new Error('cannot open thread');
 
-    await forumTable.addThreadEvent(participantId, itemId, {
-      type: 'thread_opened',
-      byUserId: userId,
-    });
-
-    return { statusCode: 201, body: '' };
-  } catch (error) {
-    return { statusCode: 401, body: '' }; // user is unauthenticated
-  }
+  await forumTable.addThreadEvent(participantId, itemId, {
+    type: 'thread_opened',
+    byUserId: userId,
+  });
 };

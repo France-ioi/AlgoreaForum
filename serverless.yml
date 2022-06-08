@@ -95,6 +95,11 @@ functions:
     events:
       - websocket:
           route: open-thread
+  close-thread:
+    handler: src/threads/closeThread.handler
+    events:
+      - websocket:
+          route: close-thread
 plugins:
   - serverless-plugin-typescript
   - serverless-dynamodb-local

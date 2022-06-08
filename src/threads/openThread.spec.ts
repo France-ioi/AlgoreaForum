@@ -24,14 +24,14 @@ describe('threads', () => {
   });
 
   describe('open thread', () => {
-    it('should fail (401) when token data is invalid', async () => {
+    it('should fail when token data is invalid', async () => {
       getTokenDataStub.mockImplementationOnce(() => {
         throw new Error('...');
       });
       await expect(handler(mockEvent(), mockContext())).rejects.toThrow(Error);
     });
 
-    it('should succeed (201) when token data is valid', async () => {
+    it('should succeed when token data is valid', async () => {
       getTokenDataStub.mockReturnValueOnce(tokenData(1));
       await expect(handler(mockEvent(), mockContext())).resolves.not.toThrow();
     });

@@ -1,23 +1,13 @@
 import * as parsers from '../parsers';
+import { mockContext, mockEvent } from '../testutils/lambda';
+import { tokenData } from '../testutils/mocks';
 import { handler } from './openThread';
 import { ForumTable } from './table';
-
-const mockEvent = (): any => ({});
-const mockContext = (): any => ({});
 
 describe('threads', () => {
   const getTokenDataStub = jest.spyOn(parsers, 'extractTokenData');
   const addThreadEventStub = jest.spyOn(ForumTable.prototype, 'addThreadEvent');
   addThreadEventStub.mockReturnValue(Promise.resolve({} as any));
-
-  const tokenData = (n: number, rest?: Partial<parsers.TokenData>): parsers.TokenData => ({
-    participantId: `openThreadParticipantId-${n}`,
-    itemId: `openThreadItemId-${n}`,
-    userId: `openThreadUserId-${n}`,
-    isMine: true,
-    canWatchParticipant: true,
-    ...rest,
-  });
 
   beforeEach(() => {
     jest.resetAllMocks();

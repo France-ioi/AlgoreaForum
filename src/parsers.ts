@@ -4,7 +4,7 @@ import { decode } from './utils/decode';
 
 export const getConnectionId = (event: APIGatewayProxyEvent): string => {
   const id = event.requestContext.connectionId;
-  if (!id) throw { statusCode: 400, body: 'A connection id is required' };
+  if (!id) throw new Error('A connection id is required');
   return id;
 };
 

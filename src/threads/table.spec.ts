@@ -90,6 +90,20 @@ describe('Forum table', () => {
         byUserId: userId1,
       }]);
     });
+
+    it('should filter by type', async () => {
+      const userId1 = 'userId1';
+      const userId2 = 'userId2';
+      await loadFixture([
+        { pk, time: 2, type: 'thread_opened', byUserId: userId1 },
+        { pk, time: 3, type: 'thread_closed', byUserId: userId2 },
+        { pk, time: 4, type: 'thread_opened', byUserId: userId2 },
+      ]);
+      await expect(forumTable.getThreadEvents(participantId, itemId, { type: 'thread_opened' })).resolves.toEqual([
+        { pk, time: 2, type: 'thread_opened', byUserId: userId1 },
+        { pk, time: 4, type: 'thread_opened', byUserId: userId2 },
+      ]);
+    });
   });
 
   describe('addThreadEvent()', () => {

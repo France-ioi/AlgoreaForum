@@ -11,7 +11,7 @@ export const handler: SocketHandler = async event => {
   const { participantId, itemId, userId } = tokenData;
 
   const threadClosedEvent = await forumTable.addThreadEvent(participantId, itemId, {
-    type: 'thread_closed',
+    eventType: 'thread_closed',
     byUserId: userId,
   });
   const followers = await forumTable.getFollowers(participantId, itemId);

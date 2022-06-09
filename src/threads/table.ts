@@ -11,17 +11,17 @@ const baseEventDecoder = D.struct({
 });
 
 const threadOpenedEventDecoder = D.struct({
-  type: D.literal('thread_opened'),
+  eventType: D.literal('thread_opened'),
   byUserId: D.string,
 });
 
 const threadClosedEventDecoder = D.struct({
-  type: D.literal('thread_closed'),
+  eventType: D.literal('thread_closed'),
   byUserId: D.string,
 });
 
 const followEventDecoder = D.struct({
-  type: D.literal('follow'),
+  eventType: D.literal('follow'),
   userId: D.string,
   connectionId: D.string,
   ttl: D.number,
@@ -59,18 +59,17 @@ export class ForumTable {
   async getThreadEvents(
     participantId: string,
     itemId: string,
-    options: { limit?: number, asc?: boolean, type?: ThreadEvent['type'] } = {},
+    options: { limit?: number, asc?: boolean, eventType?: ThreadEvent['eventType'] } = {},
   ): Promise<ThreadEvent[]> {
     const threadId = this.getThreadId(participantId, itemId);
     const result = await this.db.query({
       TableName: this.tableName,
       ExpressionAttributeValues: {
         ':tid': { S: threadId },
-        ...(options.type && { ':type': { S: options.type } }),
+        ...(options.eventType && { ':type': { S: options.eventType } }),
       },
-      ...(options.type && {
-        FilterExpression: '#type = :type',
-        ExpressionAttributeNames: { '#type': 'type' }, // 'type' is a reserved keyword in dynamodb
+      ...(options.eventType && {
+        FilterExpression: 'eventType = :type',
       }),
       KeyConditionExpression: 'pk = :tid',
       ScanIndexForward: options.asc,
@@ -81,7 +80,7 @@ export class ForumTable {
   }
 
   async getFollowers(participantId: string, itemId: string): Promise<FollowEvent[]> {
-    const events = await this.getThreadEvents(participantId, itemId, { type: 'follow' });
+    const events = await this.getThreadEvents(participantId, itemId, { eventType: 'follow' });
     return events.map(decode(followEventDecoder)).filter(isNotNull);
   }
 

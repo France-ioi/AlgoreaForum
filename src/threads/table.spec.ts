@@ -18,9 +18,9 @@ describe('Forum table', () => {
     const queryStub = jest.spyOn(forumTable.db, 'query');
 
     it('should omit wrong entries', async () => {
-      await loadFixture([{ pk, time: 1, type: 'unknown_type' }, { pk, time: 2, type: 'thread_opened', byUserId: '12' }]);
+      await loadFixture([{ pk, time: 1, eventType: 'unknown_type' }, { pk, time: 2, eventType: 'thread_opened', byUserId: '12' }]);
       await expect(forumTable.getThreadEvents(participantId, itemId)).resolves.toEqual([
-        { pk, time: 2, type: 'thread_opened', byUserId: '12' },
+        { pk, time: 2, eventType: 'thread_opened', byUserId: '12' },
       ]);
     });
 
@@ -28,18 +28,18 @@ describe('Forum table', () => {
       const userId1 = 'userId1';
       const userId2 = 'userId2';
       await loadFixture([
-        { pk, time: 2, type: 'thread_opened', byUserId: userId1 },
-        { pk, time: 3, type: 'thread_closed', byUserId: userId2 },
+        { pk, time: 2, eventType: 'thread_opened', byUserId: userId1 },
+        { pk, time: 3, eventType: 'thread_closed', byUserId: userId2 },
       ]);
       await expect(forumTable.getThreadEvents(participantId, itemId)).resolves.toEqual([{
         pk,
         time: 2,
-        type: 'thread_opened',
+        eventType: 'thread_opened',
         byUserId: userId1,
       }, {
         pk,
         time: 3,
-        type: 'thread_closed',
+        eventType: 'thread_closed',
         byUserId: userId2,
       }]);
     });
@@ -60,18 +60,18 @@ describe('Forum table', () => {
       const userId1 = 'userId1';
       const userId2 = 'userId2';
       await loadFixture([
-        { pk, time: 2, type: 'thread_opened', byUserId: userId1 },
-        { pk, time: 3, type: 'thread_closed', byUserId: userId2 },
+        { pk, time: 2, eventType: 'thread_opened', byUserId: userId1 },
+        { pk, time: 3, eventType: 'thread_closed', byUserId: userId2 },
       ]);
       await expect(forumTable.getThreadEvents(participantId, itemId, { asc: false })).resolves.toEqual([{
         pk,
         time: 3,
-        type: 'thread_closed',
+        eventType: 'thread_closed',
         byUserId: userId2,
       }, {
         pk,
         time: 2,
-        type: 'thread_opened',
+        eventType: 'thread_opened',
         byUserId: userId1,
       }]);
     });
@@ -80,13 +80,13 @@ describe('Forum table', () => {
       const userId1 = 'userId1';
       const userId2 = 'userId2';
       await loadFixture([
-        { pk, time: 2, type: 'thread_opened', byUserId: userId1 },
-        { pk, time: 3, type: 'thread_closed', byUserId: userId2 },
+        { pk, time: 2, eventType: 'thread_opened', byUserId: userId1 },
+        { pk, time: 3, eventType: 'thread_closed', byUserId: userId2 },
       ]);
       await expect(forumTable.getThreadEvents(participantId, itemId, { limit: 1 })).resolves.toEqual([{
         pk,
         time: 2,
-        type: 'thread_opened',
+        eventType: 'thread_opened',
         byUserId: userId1,
       }]);
     });
@@ -95,13 +95,13 @@ describe('Forum table', () => {
       const userId1 = 'userId1';
       const userId2 = 'userId2';
       await loadFixture([
-        { pk, time: 2, type: 'thread_opened', byUserId: userId1 },
-        { pk, time: 3, type: 'thread_closed', byUserId: userId2 },
-        { pk, time: 4, type: 'thread_opened', byUserId: userId2 },
+        { pk, time: 2, eventType: 'thread_opened', byUserId: userId1 },
+        { pk, time: 3, eventType: 'thread_closed', byUserId: userId2 },
+        { pk, time: 4, eventType: 'thread_opened', byUserId: userId2 },
       ]);
-      await expect(forumTable.getThreadEvents(participantId, itemId, { type: 'thread_opened' })).resolves.toEqual([
-        { pk, time: 2, type: 'thread_opened', byUserId: userId1 },
-        { pk, time: 4, type: 'thread_opened', byUserId: userId2 },
+      await expect(forumTable.getThreadEvents(participantId, itemId, { eventType: 'thread_opened' })).resolves.toEqual([
+        { pk, time: 2, eventType: 'thread_opened', byUserId: userId1 },
+        { pk, time: 4, eventType: 'thread_opened', byUserId: userId2 },
       ]);
     });
   });
@@ -116,12 +116,12 @@ describe('Forum table', () => {
 
     it('should add an event', async () => {
       expect.assertions(1);
-      await forumTable.addThreadEvent(participantId, itemId, { type: 'thread_opened', byUserId: userId1 });
+      await forumTable.addThreadEvent(participantId, itemId, { eventType: 'thread_opened', byUserId: userId1 });
       await expect(getAll()).resolves.toMatchObject({
         Items: [{
           pk: { S: pk },
           time: { N: expect.stringMatching(/^[0-9.]+$/) },
-          type: { S: 'thread_opened' },
+          eventType: { S: 'thread_opened' },
           byUserId: { S: userId1 },
         }],
       });
@@ -132,7 +132,7 @@ describe('Forum table', () => {
       putItemStub.mockImplementationOnce(() => {
         throw error;
       });
-      await expect(forumTable.addThreadEvent('abc', 'def', { type: 'thread_opened', byUserId: 'toto' })).rejects.toBe(error);
+      await expect(forumTable.addThreadEvent('abc', 'def', { eventType: 'thread_opened', byUserId: 'toto' })).rejects.toBe(error);
     });
   });
 });

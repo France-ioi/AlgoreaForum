@@ -42,7 +42,7 @@ describe('close thread', () => {
     expect(addThreadEventStub).toHaveBeenLastCalledWith(
       data.participantId,
       data.itemId,
-      { type: 'thread_closed', byUserId: data.userId },
+      { eventType: 'thread_closed', byUserId: data.userId },
     );
   });
 
@@ -54,7 +54,7 @@ describe('close thread', () => {
     expect(addThreadEventStub).toHaveBeenLastCalledWith(
       data.participantId,
       data.itemId,
-      { type: 'thread_closed', byUserId: data.userId },
+      { eventType: 'thread_closed', byUserId: data.userId },
     );
   });
 
@@ -65,7 +65,7 @@ describe('close thread', () => {
     const followerUserId = 'followerUserId';
     const followerConnectionId = 'followerConnectionId';
     await forumTable.addThreadEvent(data.participantId, data.itemId, {
-      type: 'follow',
+      eventType: 'follow',
       userId: followerUserId,
       connectionId: followerConnectionId,
       ttl: 12,
@@ -75,7 +75,7 @@ describe('close thread', () => {
     expect(sendAllStub).toHaveBeenLastCalledWith([ followerConnectionId ], [{
       pk: expect.any(String),
       time: expect.any(Number),
-      type: 'thread_closed',
+      eventType: 'thread_closed',
       byUserId: data.userId,
     }]);
   });

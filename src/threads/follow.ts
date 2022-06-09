@@ -19,7 +19,7 @@ export const handler: SocketHandler = async event => {
   const { participantId, itemId, userId } = tokenData;
 
   await forumTable.addThreadEvent(participantId, itemId, {
-    type: 'follow',
+    eventType: 'follow',
     connectionId,
     ttl: followTtl,
     userId,

@@ -15,11 +15,11 @@ export const handler: SocketHandler = async event => {
 
   const [ threadOpenedEvent ]= await Promise.all([
     forumTable.addThreadEvent(participantId, itemId, {
-      type: 'thread_opened',
+      eventType: 'thread_opened',
       byUserId: userId,
     }),
     forumTable.addThreadEvent(participantId, itemId, {
-      type: 'follow',
+      eventType: 'follow',
       ttl: followTtl,
       connectionId: getConnectionId(event),
       userId,

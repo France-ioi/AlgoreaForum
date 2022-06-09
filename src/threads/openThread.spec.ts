@@ -43,7 +43,7 @@ describe('threads', () => {
       expect(addThreadEventStub).toHaveBeenCalledWith(
         data.participantId,
         data.itemId,
-        { type: 'thread_opened', byUserId: data.userId },
+        { eventType: 'thread_opened', byUserId: data.userId },
       );
     });
 
@@ -61,7 +61,7 @@ describe('threads', () => {
       expect(addThreadEventStub).toHaveBeenCalledWith(
         data.participantId,
         data.itemId,
-        { type: 'thread_opened', byUserId: data.userId },
+        { eventType: 'thread_opened', byUserId: data.userId },
       );
     });
 
@@ -74,7 +74,7 @@ describe('threads', () => {
       expect(addThreadEventStub).toHaveBeenCalledWith(
         data.participantId,
         data.itemId,
-        { type: 'follow', userId: data.userId, connectionId, ttl: expect.any(Number) },
+        { eventType: 'follow', userId: data.userId, connectionId, ttl: expect.any(Number) },
       );
     });
 
@@ -87,7 +87,7 @@ describe('threads', () => {
       const followerUserId = 'followerUserId';
       const followerConnectionId = 'followerConnectionId';
       await forumTable.addThreadEvent(data.participantId, data.itemId, {
-        type: 'follow',
+        eventType: 'follow',
         userId: followerUserId,
         connectionId: followerConnectionId,
         ttl: 12,
@@ -97,7 +97,7 @@ describe('threads', () => {
       expect(sendAllStub).toHaveBeenLastCalledWith([ followerConnectionId, connectionId ], [{
         pk: expect.any(String),
         time: expect.any(Number),
-        type: 'thread_opened',
+        eventType: 'thread_opened',
         byUserId: data.userId,
       }]);
     });

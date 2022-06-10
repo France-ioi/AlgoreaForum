@@ -47,16 +47,16 @@ provider:
         - "arn:aws:execute-api:*:*:**/@connections/*"
 
 functions:
-  connection:
-    handler: src/forum.handleConnection
-    events:
-      - websocket:
-          route: $connect
-  disconnection:
-    handler: src/forum.handleDisconnection
-    events:
-      - websocket:
-          route: $disconnect
+  # connection:
+  #   handler: src/forum.handleConnection
+  #   events:
+  #     - websocket:
+  #         route: $connect
+  # disconnection:
+  #   handler: src/forum.handleDisconnection
+  #   events:
+  #     - websocket:
+  #         route: $disconnect
   offer-help:
     handler: src/forum.assistantOffersHelp
     events:
@@ -90,6 +90,16 @@ functions:
       - httpApi:
           path: /main.js
           method: get
+  connection:
+    handler: src/threads/connection.handler
+    events:
+      - websocket:
+          route: $connect
+  # disconnection:
+  #   handler: src/threads/unfollow.handler
+  #   events:
+  #     - websocket:
+  #         route: $disconnect
   open-thread:
     handler: src/threads/openThread.handler
     events:

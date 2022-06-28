@@ -1,4 +1,4 @@
-import * as parsers from '../parsers';
+import * as parsers from '../utils/parsers';
 import * as messages from './messages';
 import { mockCallback, mockContext, mockEvent } from '../testutils/lambda';
 import { tokenData } from '../testutils/mocks';

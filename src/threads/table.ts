@@ -28,12 +28,31 @@ const followEventDecoder = D.struct({
 });
 export type FollowEvent = D.TypeOf<typeof followEventDecoder>;
 
+const attemptStartedEventDecoder = D.struct({
+  eventType: D.literal('attempt_started'),
+  attemptId: D.string,
+});
+
+const submissionEventDecoder = pipe(
+  D.struct({
+    eventType: D.literal('submission'),
+    attemptId: D.string,
+    answerId: D.string,
+  }),
+  D.intersect(D.partial({
+    score: D.number,
+    validated: D.boolean,
+  }))
+);
+
 const threadEventInput = D.union(
   threadOpenedEventDecoder,
   threadClosedEventDecoder,
   followEventDecoder,
+  attemptStartedEventDecoder,
+  submissionEventDecoder,
 );
-type ThreadEventInput = D.TypeOf<typeof threadEventInput>;
+export type ThreadEventInput = D.TypeOf<typeof threadEventInput>;
 
 const threadEventDecoder = pipe(
   threadEventInput,

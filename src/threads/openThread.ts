@@ -24,25 +24,20 @@ export const handler: APIGatewayProxyHandler = async event => {
   if (!payload) return badRequest('"history" is required');
 
   try {
-    await forumTable.addThreadEvent(participantId, itemId, {
-      eventType: 'follow',
-      ttl: followTtl,
-      connectionId,
-      userId,
-    });
-
-    const [ eventsImportedFromHistory, threadOpenedEvent ] = await Promise.all([
-      Promise.all(
-        payload.history.map(log => {
-          const event = activityLogToThreadData(log);
-          return event && forumTable.addThreadEvent(event.participantId, event.itemId, event.input, event.at.valueOf());
-        }).filter(isNotNull),
-      ),
-      forumTable.addThreadEvent(participantId, itemId, {
-        eventType: 'thread_opened',
-        byUserId: userId,
-      }),
+    const [ , threadOpenedEvent, ...eventsImportedFromHistory ] = await forumTable.addThreadEvents([
+      { participantId, itemId, eventType: 'follow', ttl: followTtl, connectionId, userId },
+      { participantId, itemId, eventType: 'thread_opened', byUserId: userId },
+      ...payload.history.map(log => {
+        const event = activityLogToThreadData(log);
+        return event && {
+          participantId: event.participantId,
+          itemId: event.itemId,
+          time: event.at.valueOf(),
+          ...event.input,
+        };
+      }).filter(isNotNull),
     ]);
+    if (!threadOpenedEvent) throw new Error('threadOpened must exist');
     const followers = await forumTable.getFollowers(participantId, itemId);
     const connectionIds = followers.map(follower => follower.connectionId);
     await sendAll(connectionIds, [ ...eventsImportedFromHistory, threadOpenedEvent ]);

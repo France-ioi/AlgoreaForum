@@ -1,4 +1,4 @@
-import { TokenData } from '../parsers';
+import { TokenData } from '../utils/parsers';
 
 export const tokenData = (n: number, rest?: Partial<TokenData>): TokenData => ({
   participantId: `openThreadParticipantId-${n}`,

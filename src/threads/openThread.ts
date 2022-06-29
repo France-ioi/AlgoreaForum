@@ -1,6 +1,6 @@
 import type { APIGatewayProxyHandler } from 'aws-lambda';
 import { ForumTable } from './table';
-import { extractTokenData, getConnectionId } from '../parsers';
+import { extractTokenData, getConnectionId } from '../utils/parsers';
 import { dynamodb } from '../dynamodb';
 import { sendAll } from './messages';
 import { followTtl } from './follow';

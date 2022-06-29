@@ -1,6 +1,6 @@
 import type { APIGatewayProxyEvent } from 'aws-lambda';
 import * as D from 'io-ts/Decoder';
-import { decode } from './utils/decode';
+import { decode } from './decode';
 
 export const getConnectionId = (event: APIGatewayProxyEvent): string | null => event.requestContext.connectionId || null;
 

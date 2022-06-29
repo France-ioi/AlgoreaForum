@@ -3,7 +3,7 @@ jest.mock('./messages.ts', () => ({
   sendAll: sendAllStub,
 }));
 import { dynamodb } from '../dynamodb';
-import * as parsers from '../parsers';
+import * as parsers from '../utils/parsers';
 import { deleteAll } from '../testutils/db';
 import { mockCallback, mockContext, mockEvent } from '../testutils/lambda';
 import { tokenData } from '../testutils/mocks';

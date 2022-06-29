@@ -54,11 +54,7 @@ describe('threads', () => {
       await expect(handler(mockEvent({ connectionId, body: { history: [] } }), mockContext(), mockCallback()))
         .resolves
         .toEqual(serverError());
-      expect(addThreadEventStub).toHaveBeenCalledWith(
-        data.participantId,
-        data.itemId,
-        { eventType: 'thread_opened', byUserId: data.userId },
-      );
+      expect(addThreadEventStub).toHaveBeenCalled();
     });
 
     it('should forbid action when thread does not belong to the user and s-he cannot watch the participant', async () => {
@@ -96,24 +92,25 @@ describe('threads', () => {
     it('should add history as thread events', async () => {
       const data = tokenData(10);
       getTokenDataStub.mockReturnValueOnce(data);
+      const resultStarted = historyMocks.resultStarted({ item: { id: data.itemId }, participant: { id: data.participantId } });
+      const resultValidated = historyMocks.resultValidated({ item: { id: data.itemId }, participant: { id: data.participantId } });
       await expect(handler(mockEvent({
         connectionId,
         body: {
-          history: [
-            historyMocks.resultStarted({ item: { id: data.itemId }, participant: { id: data.participantId } }),
-            historyMocks.resultValidated({ item: { id: data.itemId }, participant: { id: data.participantId } }),
-          ],
+          history: [ resultStarted, resultValidated ],
         },
       }), mockContext(), mockCallback())).resolves.toEqual(ok());
       expect(addThreadEventStub).toHaveBeenCalledWith(
         data.participantId,
         data.itemId,
         expect.objectContaining({ eventType: 'attempt_started' }),
+        resultStarted.at.valueOf(),
       );
       expect(addThreadEventStub).toHaveBeenCalledWith(
         data.participantId,
         data.itemId,
         expect.objectContaining({ eventType: 'submission' }),
+        resultValidated.at.valueOf(),
       );
     });
 
@@ -129,15 +126,28 @@ describe('threads', () => {
         connectionId: followerConnectionId,
         ttl: 12,
       });
-      await handler(mockEvent({ connectionId, body: { history: [] } }), mockContext(), mockCallback());
+      const resultStarted = historyMocks.resultStarted({ item: { id: data.itemId }, participant: { id: data.participantId } });
+      const resultValidated = historyMocks.resultValidated({ item: { id: data.itemId }, participant: { id: data.participantId } });
+      const eventMock = mockEvent({
+        connectionId,
+        body: { history: [ resultStarted, resultValidated ] },
+      });
+      await handler(eventMock, mockContext(), mockCallback());
 
       expect(sendAllStub).toHaveBeenCalledTimes(1);
-      expect(sendAllStub).toHaveBeenLastCalledWith([ followerConnectionId, connectionId ], [{
-        pk: expect.any(String),
-        time: expect.any(Number),
-        eventType: 'thread_opened',
-        byUserId: data.userId,
-      }]);
+      expect(sendAllStub).toHaveBeenLastCalledWith([ followerConnectionId, connectionId ], [
+        expect.objectContaining({ eventType: 'attempt_started' }),
+        expect.objectContaining({ eventType: 'submission' }),
+        expect.objectContaining({ eventType: 'thread_opened', byUserId: data.userId }),
+      ]);
+
+      await expect(forumTable.getThreadEvents(data.participantId, data.itemId)).resolves.toEqual([
+        expect.objectContaining({ eventType: 'attempt_started' }),
+        expect.objectContaining({ eventType: 'submission' }),
+        expect.objectContaining({ eventType: 'follow', userId: followerUserId }),
+        expect.objectContaining({ eventType: 'follow', userId: data.userId }),
+        expect.objectContaining({ eventType: 'thread_opened', byUserId: data.userId }),
+      ]);
     });
   });
 
@@ -152,6 +162,7 @@ describe('threads', () => {
       expect(activityLogToThreadData(mock)).toEqual({
         itemId: mock.item.id,
         participantId: mock.participant.id,
+        at: mock.at,
         input: {
           eventType: 'attempt_started',
           attemptId: mock.attemptId,
@@ -164,6 +175,7 @@ describe('threads', () => {
       expect(activityLogToThreadData(mock)).toEqual({
         itemId: mock.item.id,
         participantId: mock.participant.id,
+        at: mock.at,
         input: {
           eventType: 'submission',
           attemptId: mock.attemptId,
@@ -184,6 +196,7 @@ describe('threads', () => {
       expect(activityLogToThreadData(mock)).toEqual({
         itemId: mock.item.id,
         participantId: mock.participant.id,
+        at: mock.at,
         input: {
           eventType: 'submission',
           attemptId: mock.attemptId,
@@ -204,6 +217,7 @@ describe('threads', () => {
       expect(activityLogToThreadData(mock)).toEqual({
         itemId: mock.item.id,
         participantId: mock.participant.id,
+        at: mock.at,
         input: {
           eventType: 'submission',
           attemptId: mock.attemptId,
@@ -219,6 +233,7 @@ describe('threads', () => {
       expect(activityLogToThreadData(mock)).toEqual({
         itemId: mock.item.id,
         participantId: mock.participant.id,
+        at: mock.at,
         input: {
           eventType: 'submission',
           attemptId: mock.attemptId,
@@ -234,6 +249,7 @@ describe('threads', () => {
       expect(activityLogToThreadData(mock)).toEqual({
         itemId: mock.item.id,
         participantId: mock.participant.id,
+        at: mock.at,
         input: {
           eventType: 'submission',
           attemptId: mock.attemptId,

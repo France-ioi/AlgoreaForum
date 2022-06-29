@@ -10,10 +10,22 @@ export const tokenData = (n: number, rest?: Partial<TokenData>): TokenData => ({
   ...rest,
 });
 
+const addDays = (count: number) => (from: Date): Date => {
+  const date = new Date(from);
+  date.setDate(date.getDate() + count);
+  return date;
+};
+const today = (timeInMs = 0): Date => {
+  const timeless = new Date(new Date().toISOString().slice(0, 10));
+  return new Date(timeless.valueOf() + timeInMs);
+};
+const yesterday = (timeInMs = 0): Date => addDays(-1)(today(timeInMs));
+
 export const historyMocks = {
   resultStarted: (overrides?: Partial<ActivityLog>): ActivityLog => ({
     activityType: 'result_started',
     attemptId: 'resultStartedAttemptId',
+    at: yesterday(10),
     item: { id: 'resultStartedItemId' },
     participant: { id: 'resultStartedParticipantId' },
     answerId: 'resultStartedAnswerId',
@@ -23,6 +35,7 @@ export const historyMocks = {
   submission: (overrides?: Partial<ActivityLog>): ActivityLog => ({
     activityType: 'submission',
     attemptId: 'submissionAttemptId',
+    at: yesterday(20),
     item: { id: 'submissionItemId' },
     participant: { id: 'submissionParticipantId' },
     answerId: 'submissionAnswerId',
@@ -32,6 +45,7 @@ export const historyMocks = {
   resultValidated: (overrides?: Partial<ActivityLog>): ActivityLog => ({
     activityType: 'result_validated',
     attemptId: 'validatedAttemptId',
+    at: yesterday(30),
     item: { id: 'validatedItemId' },
     participant: { id: 'validatedParticipantId' },
     answerId: 'validatedAnswerId',

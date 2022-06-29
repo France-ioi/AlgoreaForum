@@ -7,7 +7,7 @@ import { followTtl } from './follow';
 import { badRequest, forbidden, ok, serverError, unauthorized } from '../utils/responses';
 import { pipe } from 'fp-ts/function';
 import * as D from 'io-ts/Decoder';
-import { decode } from '../utils/decode';
+import { dateDecoder, decode } from '../utils/decode';
 import { isNotNull } from '../utils/predicates';
 
 const forumTable = new ForumTable(dynamodb);
@@ -24,25 +24,28 @@ export const handler: APIGatewayProxyHandler = async event => {
   if (!payload) return badRequest('"history" is required');
 
   try {
-    const [ threadOpenedEvent ] = await Promise.all([
+    await forumTable.addThreadEvent(participantId, itemId, {
+      eventType: 'follow',
+      ttl: followTtl,
+      connectionId,
+      userId,
+    });
+
+    const [ eventsImportedFromHistory, threadOpenedEvent ] = await Promise.all([
+      Promise.all(
+        payload.history.map(log => {
+          const event = activityLogToThreadData(log);
+          return event && forumTable.addThreadEvent(event.participantId, event.itemId, event.input, event.at.valueOf());
+        }).filter(isNotNull),
+      ),
       forumTable.addThreadEvent(participantId, itemId, {
         eventType: 'thread_opened',
         byUserId: userId,
       }),
-      forumTable.addThreadEvent(participantId, itemId, {
-        eventType: 'follow',
-        ttl: followTtl,
-        connectionId,
-        userId,
-      }),
-      ...payload.history.map(log => {
-        const event = activityLogToThreadData(log);
-        return event && forumTable.addThreadEvent(event.participantId, event.itemId, event.input);
-      }).filter(isNotNull)
     ]);
     const followers = await forumTable.getFollowers(participantId, itemId);
     const connectionIds = followers.map(follower => follower.connectionId);
-    await sendAll(connectionIds, [ threadOpenedEvent ]);
+    await sendAll(connectionIds, [ ...eventsImportedFromHistory, threadOpenedEvent ]);
 
     return ok();
   } catch {
@@ -54,6 +57,7 @@ const activityLogDecoder = pipe(
   D.struct({
     activityType: D.literal('result_started', 'submission', 'result_validated'),
     attemptId: D.string,
+    at: dateDecoder,
     item: D.struct({
       id: D.string,
     }),
@@ -73,6 +77,7 @@ export type ActivityLog = D.TypeOf<typeof activityLogDecoder>;
 interface ThreadData {
   participantId: string,
   itemId: string,
+  at: Date,
   input: ThreadEventInput,
 }
 
@@ -82,6 +87,7 @@ export const activityLogToThreadData = (log: ActivityLog): ThreadData | null => 
       return {
         itemId: log.item.id,
         participantId: log.participant.id,
+        at: log.at,
         input: {
           eventType: 'attempt_started',
           attemptId: log.attemptId,
@@ -93,6 +99,7 @@ export const activityLogToThreadData = (log: ActivityLog): ThreadData | null => 
       return {
         itemId: log.item.id,
         participantId: log.participant.id,
+        at: log.at,
         input: {
           eventType: 'submission',
           attemptId: log.attemptId,

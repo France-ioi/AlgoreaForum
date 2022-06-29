@@ -2,6 +2,7 @@ import type { APIGatewayProxyHandler, APIGatewayProxyEvent, APIGatewayProxyResul
 import { isPeer, Peer, peersTable } from './db/peers';
 import { send, sendAll } from './message';
 import { getConnectionId, getPayload } from './parsers';
+import { badRequest } from './utils/responses';
 
 /**
  * Acts as a proxy between connection as "trainee" and connection as "assistant"
@@ -28,6 +29,7 @@ export const handleConnection: APIGatewayProxyHandler = (event, _context, callba
  */
 const handleAssistantConnection = async (event: APIGatewayProxyEvent, callback: Callback<APIGatewayProxyResult>): Promise<void> => {
   const connectionId = getConnectionId(event);
+  if (!connectionId) return;
   await peersTable.add({ connectionId, status: 'ASSISTANT_FREE' });
   const waitingTrainees = await peersTable.getByStatus('TRAINEE_WAITING');
 
@@ -44,7 +46,9 @@ const handleAssistantConnection = async (event: APIGatewayProxyEvent, callback: 
  * - Send to free/available assistants a new list of trainees awaiting help
  */
 const handleTraineeConnection = async (event: APIGatewayProxyEvent, callback: Callback<APIGatewayProxyResult>): Promise<void> => {
-  await peersTable.add({ connectionId: getConnectionId(event), status: 'TRAINEE_WAITING' });
+  const connectionId = getConnectionId(event);
+  if (!connectionId) return;
+  await peersTable.add({ connectionId, status: 'TRAINEE_WAITING' });
   const [ waitingTrainees, freeAssistants ] = await Promise.all([
     peersTable.getByStatus('TRAINEE_WAITING'),
     peersTable.getByStatus('ASSISTANT_FREE'),
@@ -57,7 +61,9 @@ const handleTraineeConnection = async (event: APIGatewayProxyEvent, callback: Ca
  * Acts as a proxy to handle disconnection of a trainee or an assistant.
  */
 export const handleDisconnection: APIGatewayProxyHandler = async event => {
-  const peer = await peersTable.get(getConnectionId(event));
+  const connectionId = getConnectionId(event);
+  if (!connectionId) return badRequest();
+  const peer = await peersTable.get(connectionId);
   const isTrainee = peer.status === 'TRAINEE_BUSY' || peer.status === 'TRAINEE_WAITING';
   return isTrainee
     ? handleTraineeDisconnection(peer)
@@ -100,10 +106,12 @@ const handleTraineeDisconnection = async (trainee: Peer): Promise<APIGatewayProx
  * When an assistant offers his/her help, forward it to the trainee.
  */
 export const assistantOffersHelp: APIGatewayProxyHandler = async event => {
-  const { trainee } = getPayload(event);
+  const connectionId = getConnectionId(event);
+  if (!connectionId) return badRequest();
+  const trainee = (getPayload(event) as Record<string, unknown>)?.trainee;
   if (!isPeer(trainee)) return { statusCode: 400, body: 'trainee must be a peer with a status and a connection id' };
 
-  const assistant = await peersTable.get(getConnectionId(event));
+  const assistant = await peersTable.get(connectionId);
   await send(trainee.connectionId, { type: 'help-offer', assistant });
   return { statusCode: 204, body: '' };
 };
@@ -115,9 +123,10 @@ export const assistantOffersHelp: APIGatewayProxyHandler = async event => {
  * - Notify remaining free assistants of the trainee's status change
  */
 export const traineeAcceptsHelpOffer: APIGatewayProxyHandler = async event => {
-  const { assistant } = getPayload(event);
+  const assistant = (getPayload(event) as Record<string, unknown>)?.assistant;
   if (!isPeer(assistant)) return { statusCode: 400, body: 'assistant must be a peer with a status and a connection id' };
   const traineeConnectionId = getConnectionId(event);
+  if (!traineeConnectionId) return badRequest();
   await Promise.all([
     peersTable.update(assistant.connectionId, 'ASSISTANT_BUSY'),
     peersTable.update(traineeConnectionId, 'TRAINEE_BUSY'),
@@ -141,7 +150,7 @@ export const traineeAcceptsHelpOffer: APIGatewayProxyHandler = async event => {
  * For that message only, we change the assistant status to free/available and do nothing more, the rest will be handled at disconnection.
  */
 export const traineeEndsHelp: APIGatewayProxyHandler = async event => {
-  const { assistant } = getPayload(event);
+  const assistant = (getPayload(event) as Record<string, unknown>)?.assistant;
   if (!isPeer(assistant)) return { statusCode: 400, body: 'trainee must be a peer with a status and a connection id' };
 
   await peersTable.update(assistant.connectionId, 'ASSISTANT_FREE');
@@ -155,9 +164,10 @@ export const traineeEndsHelp: APIGatewayProxyHandler = async event => {
  * - Notify the assistant of the trainees awaiting help
  */
 export const assistantEndsHelp: APIGatewayProxyHandler = async event => {
-  const { trainee } = getPayload(event);
+  const trainee = (getPayload(event) as Record<string, unknown>)?.trainee;
   if (!isPeer(trainee)) return { statusCode: 400, body: 'trainee must be a peer with a status and a connection id' };
   const assistantConnectionId = getConnectionId(event);
+  if (!assistantConnectionId) return badRequest();
 
   const [ awaitingTrainees ] = await Promise.all([
     peersTable.getByStatus('TRAINEE_WAITING'),

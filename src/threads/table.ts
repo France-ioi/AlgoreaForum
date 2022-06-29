@@ -107,11 +107,12 @@ export class ForumTable {
     participantId: string,
     itemId: string,
     threadEvent: ThreadEventInput,
+    time = Date.now(),
   ): Promise<ThreadEvent> {
     const createdThreadEvent: ThreadEvent = {
       ...threadEvent,
       pk: this.getThreadId(participantId, itemId),
-      time: Date.now(),
+      time,
     };
     await this.db.putItem({
       TableName: this.tableName,

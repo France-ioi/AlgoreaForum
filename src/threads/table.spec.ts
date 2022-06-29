@@ -127,6 +127,20 @@ describe('Forum table', () => {
       });
     });
 
+    it('should add an event with time', async () => {
+      expect.assertions(1);
+      const time = 42;
+      await forumTable.addThreadEvent(participantId, itemId, { eventType: 'thread_opened', byUserId: userId1 }, time);
+      await expect(getAll()).resolves.toMatchObject({
+        Items: [{
+          pk: { S: pk },
+          time: { N: time.toString() },
+          eventType: { S: 'thread_opened' },
+          byUserId: { S: userId1 },
+        }],
+      });
+    });
+
     it('should let aws errors bubble', async () => {
       const error = new Error('oops');
       putItemStub.mockImplementationOnce(() => {

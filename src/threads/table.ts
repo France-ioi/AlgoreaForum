@@ -107,18 +107,42 @@ export class ForumTable {
     participantId: string,
     itemId: string,
     threadEvent: ThreadEventInput,
-    time = Date.now(),
   ): Promise<ThreadEvent> {
     const createdThreadEvent: ThreadEvent = {
       ...threadEvent,
       pk: this.getThreadId(participantId, itemId),
-      time,
+      time: Date.now(),
     };
     await this.db.putItem({
       TableName: this.tableName,
       Item: toDBItem(createdThreadEvent),
     });
     return createdThreadEvent;
+  }
+
+  /**
+   * Add multiple DB items in ascending order (if time not specified)
+   */
+  async addThreadEvents(input: (ThreadEventInput & { participantId: string, itemId: string, time?: number })[]): Promise<ThreadEvent[]> {
+    const now = Date.now();
+    const createdEvents: ThreadEvent[] = input.map(({ participantId, itemId, time, ...threadEventInput }, index) => ({
+      ...threadEventInput,
+      pk: this.getThreadId(participantId, itemId),
+      // NOTE: Why `now + index`:
+      // An array can issue 100~200 items per millisecond. We need to make sure created events won't override one another
+      time: time ?? (now + index),
+    }));
+
+    await this.db.batchWriteItem({
+      RequestItems: {
+        [this.tableName]: createdEvents.map(threadEvent => ({
+          PutRequest: {
+            Item: toDBItem(threadEvent),
+          },
+        })),
+      }
+    });
+    return createdEvents;
   }
 }
 /* eslint-enable @typescript-eslint/naming-convention */

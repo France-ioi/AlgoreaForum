@@ -127,26 +127,66 @@ describe('Forum table', () => {
       });
     });
 
-    it('should add an event with time', async () => {
-      expect.assertions(1);
-      const time = 42;
-      await forumTable.addThreadEvent(participantId, itemId, { eventType: 'thread_opened', byUserId: userId1 }, time);
-      await expect(getAll()).resolves.toMatchObject({
-        Items: [{
-          pk: { S: pk },
-          time: { N: time.toString() },
-          eventType: { S: 'thread_opened' },
-          byUserId: { S: userId1 },
-        }],
-      });
-    });
-
     it('should let aws errors bubble', async () => {
       const error = new Error('oops');
       putItemStub.mockImplementationOnce(() => {
         throw error;
       });
       await expect(forumTable.addThreadEvent('abc', 'def', { eventType: 'thread_opened', byUserId: 'toto' })).rejects.toBe(error);
+    });
+  });
+
+  describe('addThreadEvents()', () => {
+    const participantId = 'addMultiThreadParticipantId';
+    const itemId = 'addMultiThreadItemId';
+    const pk = `THREAD#${participantId}#${itemId}`;
+    const userId2 = 'userId2';
+    // @ts-ignore
+    const batchWriteItemStub = jest.spyOn(forumTable.db, 'batchWriteItem');
+
+    it('should add events', async () => {
+      expect.assertions(1);
+      await forumTable.addThreadEvents([
+        { participantId, itemId, eventType: 'thread_opened', byUserId: userId2 },
+        { participantId, itemId, eventType: 'thread_closed', byUserId: userId2 },
+      ]);
+      await expect(getAll()).resolves.toMatchObject({
+        Items: [{
+          pk: { S: pk },
+          time: { N: expect.stringMatching(/^[0-9.]+$/) },
+          eventType: { S: 'thread_opened' },
+          byUserId: { S: userId2 },
+        }, {
+          pk: { S: pk },
+          time: { N: expect.stringMatching(/^[0-9.]+$/) },
+          eventType: { S: 'thread_closed' },
+          byUserId: { S: userId2 },
+        }],
+      });
+    });
+
+    it('should add events with time', async () => {
+      expect.assertions(1);
+      const time = 42;
+      await forumTable.addThreadEvents([{ participantId, itemId, eventType: 'thread_opened', byUserId: userId2, time }]);
+      await expect(getAll()).resolves.toMatchObject({
+        Items: [{
+          pk: { S: pk },
+          time: { N: time.toString() },
+          eventType: { S: 'thread_opened' },
+          byUserId: { S: userId2 },
+        }],
+      });
+    });
+
+    it('should let aws errors bubble', async () => {
+      const error = new Error('oops');
+      batchWriteItemStub.mockImplementationOnce(() => {
+        throw error;
+      });
+      await expect(forumTable.addThreadEvents([
+        { participantId: 'abc', itemId: 'def', eventType: 'thread_opened', byUserId: 'toto' },
+      ])).rejects.toBe(error);
     });
   });
 });

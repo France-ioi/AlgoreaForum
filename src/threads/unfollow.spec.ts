@@ -48,22 +48,28 @@ describe('follow', () => {
   });
 
   describe('with valid data', () => {
+    const connectionId = 'connectionId';
     const data = tokenData(4);
-    const otherUserId = 'otherUserId';
+    const userId1 = 'userId1';
+    const connectionId1 = 'connectionId1';
+    const userId2 = 'userId2';
+    const connectionId2 = 'connectionId2';
     const followEventToDelete = followEventMock(data.participantId, data.itemId, { connectionId, userId: data.userId, time: 1 });
-    const followEventToKeep = followEventMock(data.participantId, data.itemId, { connectionId, userId: otherUserId, time: 2 });
-    const sendStub = jest.spyOn(messages, 'send');
+    const followEventToKeep1 = followEventMock(data.participantId, data.itemId, { connectionId: connectionId1, userId: userId1, time: 2 });
+    const followEventToKeep2 = followEventMock(data.participantId, data.itemId, { connectionId: connectionId2, userId: userId2, time: 3 });
+    let sendStub!: jest.SpyInstance<Promise<void>, [connectionId: string, messages: any[]]>;
     const callHandler = () => handler(mockEvent({ connectionId, tokenData: data }), mockContext(), mockCallback());
 
     beforeEach(async () => {
-      sendStub.mockImplementation(() => Promise.resolve());
-      await loadFixture([ followEventToDelete, followEventToKeep ]);
+      sendStub = jest.spyOn(messages, 'send');
+      sendStub.mockResolvedValue(undefined);
+      await loadFixture([ followEventToDelete, followEventToKeep1, followEventToKeep2 ]);
     });
 
     it('should remove thread event "follow" of user matching token data only', async () => {
       await expect(callHandler()).resolves.toEqual(ok());
       const all = await getAll();
-      expect(all.Items).toEqual([ toDBItem(followEventToKeep) ]);
+      expect(all.Items).toEqual([ toDBItem(followEventToKeep1), toDBItem(followEventToKeep2) ]);
     });
 
     it('should fail when removing follow event fails', async () => {
@@ -71,6 +77,18 @@ describe('follow', () => {
       removeThreadEventStub.mockRejectedValue(new Error('...'));
       await expect(callHandler()).resolves.toEqual(serverError());
       expect(removeThreadEventStub).toHaveBeenCalledTimes(1);
+    });
+
+    it('should notify other followers of the unfollow event', async () => {
+      await callHandler();
+      const unfollowEvent = { ...followEventToDelete, eventType: 'unfollow' };
+      expect(sendStub).toHaveBeenCalledWith(connectionId1, [ unfollowEvent ]);
+      expect(sendStub).toHaveBeenCalledWith(connectionId2, [ unfollowEvent ]);
+    });
+
+    it('should not notify self of the unfollow event', async () => {
+      await callHandler();
+      expect(sendStub).not.toHaveBeenCalledWith(connectionId, expect.anything());
     });
   });
 });

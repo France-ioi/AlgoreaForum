@@ -3,7 +3,7 @@ import { mockCallback, mockContext, mockEvent } from '../testutils/lambda';
 import { followEventMock, tokenData } from '../testutils/mocks';
 import { handler } from './unfollow';
 import { ForumTable } from './table';
-import { badRequest, notFound, ok, serverError, unauthorized } from '../utils/responses';
+import { badRequest, ok, serverError, unauthorized } from '../utils/responses';
 import { deleteAll, getAll, loadFixture } from '../testutils/db';
 import { toDBItem } from '../dynamodb';
 
@@ -38,11 +38,13 @@ describe('follow', () => {
     expect(getThreadEventsStub).toHaveBeenCalledTimes(1);
   });
 
-  it('should return not found response when no event to remove', async () => {
+  it('should not try removing the event when there is no event to remove', async () => {
     const data = tokenData(3);
+    const removeThreadEventStub = jest.spyOn(ForumTable.prototype, 'removeThreadEvent');
     await expect(handler(mockEvent({ tokenData: data, connectionId }), mockContext(), mockCallback()))
       .resolves
-      .toEqual(notFound());
+      .toEqual(ok());
+    expect(removeThreadEventStub).not.toHaveBeenCalled();
   });
 
   describe('with valid data', () => {

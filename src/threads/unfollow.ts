@@ -1,7 +1,7 @@
 import type { APIGatewayProxyHandler } from 'aws-lambda';
 import { dynamodb } from '../dynamodb';
 import { extractTokenData, getConnectionId } from '../utils/parsers';
-import { badRequest, notFound, ok, serverError, unauthorized } from '../utils/responses';
+import { badRequest, ok, serverError, unauthorized } from '../utils/responses';
 import { ForumTable } from './table';
 
 const forumTable = new ForumTable(dynamodb);
@@ -20,9 +20,8 @@ export const handler: APIGatewayProxyHandler = async event => {
       limit: 1,
       filters: { userId, connectionId },
     });
-    if (!followEvent) return notFound();
 
-    await forumTable.removeThreadEvent(followEvent);
+    if (followEvent) await forumTable.removeThreadEvent(followEvent);
 
     return ok();
   } catch {

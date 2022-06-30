@@ -28,12 +28,31 @@ const followEventDecoder = D.struct({
 });
 export type FollowEvent = D.TypeOf<typeof followEventDecoder>;
 
+const attemptStartedEventDecoder = D.struct({
+  eventType: D.literal('attempt_started'),
+  attemptId: D.string,
+});
+
+const submissionEventDecoder = pipe(
+  D.struct({
+    eventType: D.literal('submission'),
+    attemptId: D.string,
+    answerId: D.string,
+  }),
+  D.intersect(D.partial({
+    score: D.number,
+    validated: D.boolean,
+  }))
+);
+
 const threadEventInput = D.union(
   threadOpenedEventDecoder,
   threadClosedEventDecoder,
   followEventDecoder,
+  attemptStartedEventDecoder,
+  submissionEventDecoder,
 );
-type ThreadEventInput = D.TypeOf<typeof threadEventInput>;
+export type ThreadEventInput = D.TypeOf<typeof threadEventInput>;
 
 const threadEventDecoder = pipe(
   threadEventInput,
@@ -99,6 +118,31 @@ export class ForumTable {
       Item: toDBItem(createdThreadEvent),
     });
     return createdThreadEvent;
+  }
+
+  /**
+   * Add multiple DB items in ascending order (if time not specified)
+   */
+  async addThreadEvents(input: (ThreadEventInput & { participantId: string, itemId: string, time?: number })[]): Promise<ThreadEvent[]> {
+    const now = Date.now();
+    const createdEvents: ThreadEvent[] = input.map(({ participantId, itemId, time, ...threadEventInput }, index) => ({
+      ...threadEventInput,
+      pk: this.getThreadId(participantId, itemId),
+      // NOTE: Why `now + index`:
+      // An array can issue 100~200 items per millisecond. We need to make sure created events won't override one another
+      time: time ?? (now + index),
+    }));
+
+    await this.db.batchWriteItem({
+      RequestItems: {
+        [this.tableName]: createdEvents.map(threadEvent => ({
+          PutRequest: {
+            Item: toDBItem(threadEvent),
+          },
+        })),
+      }
+    });
+    return createdEvents;
   }
 }
 /* eslint-enable @typescript-eslint/naming-convention */

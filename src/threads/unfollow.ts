@@ -2,35 +2,34 @@ import type { APIGatewayProxyHandler } from 'aws-lambda';
 import { dynamodb } from '../dynamodb';
 import { extractTokenData, getConnectionId } from '../utils/parsers';
 import { badRequest, ok, serverError, unauthorized } from '../utils/responses';
-import { send } from './messages';
+import { sendAll } from './messages';
 import { ForumTable } from './table';
 
 const forumTable = new ForumTable(dynamodb);
-const seconds = 1;
-const minutes = 60 * seconds;
-const hours = 60 * minutes;
-/**
- * ttl is the TimeToLive value of the db entry expressed in seconds.
- */
-export const followTtl = 12 * hours;
 
 export const handler: APIGatewayProxyHandler = async event => {
   const connectionId = getConnectionId(event);
-  if (!connectionId) return badRequest();
+  if (!connectionId) return badRequest('connectionId is required');
   const tokenData = extractTokenData(event);
   if (!tokenData) return unauthorized();
   const { participantId, itemId, userId } = tokenData;
 
   try {
-    await forumTable.addThreadEvent(participantId, itemId, {
-      eventType: 'follow',
-      connectionId,
-      ttl: followTtl,
-      userId,
+    const [ followEvent ] = await forumTable.getFollowers({
+      participantId,
+      itemId,
+      limit: 1,
+      filters: { userId, connectionId },
     });
 
-    const events = await forumTable.getThreadEvents({ participantId, itemId, limit: 20, asc: false });
-    await send(connectionId, events);
+    if (!followEvent) return ok();
+
+    await forumTable.removeThreadEvent(followEvent);
+    const followers = await forumTable.getFollowers({ participantId, itemId });
+    await sendAll(
+      followers.map(follower => follower.connectionId),
+      [{ ...followEvent, eventType: 'unfollow' }],
+    );
 
     return ok();
   } catch {

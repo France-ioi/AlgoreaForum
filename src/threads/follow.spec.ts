@@ -75,7 +75,9 @@ describe('follow', () => {
 
     it('should send last 20 events to new connection', () => {
       expect(getThreadEventsStub).toHaveBeenCalledTimes(1);
-      expect(getThreadEventsStub).toHaveBeenLastCalledWith(data.participantId, data.itemId, {
+      expect(getThreadEventsStub).toHaveBeenLastCalledWith({
+        participantId: data.participantId,
+        itemId: data.itemId,
         limit: 20,
         asc: false,
       });

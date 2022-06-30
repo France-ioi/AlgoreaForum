@@ -17,7 +17,7 @@ export const handler: APIGatewayProxyHandler = async event => {
       eventType: 'thread_closed',
       byUserId: userId,
     });
-    const followers = await forumTable.getFollowers(participantId, itemId);
+    const followers = await forumTable.getFollowers({ participantId, itemId });
     const connectionIds = followers.map(follower => follower.connectionId);
     await sendAll(connectionIds, [ threadClosedEvent ]);
 

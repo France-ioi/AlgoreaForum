@@ -38,7 +38,7 @@ export const handler: APIGatewayProxyHandler = async event => {
       }).filter(isNotNull),
     ]);
     if (!threadOpenedEvent) throw new Error('threadOpened must exist');
-    const followers = await forumTable.getFollowers(participantId, itemId);
+    const followers = await forumTable.getFollowers({ participantId, itemId });
     const connectionIds = followers.map(follower => follower.connectionId);
     await sendAll(connectionIds, [ ...eventsImportedFromHistory, threadOpenedEvent ]);
 

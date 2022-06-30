@@ -147,7 +147,7 @@ describe('threads', () => {
         expect.objectContaining({ eventType: 'thread_opened', byUserId: data.userId }),
       ]);
 
-      await expect(forumTable.getThreadEvents(data.participantId, data.itemId)).resolves.toEqual([
+      await expect(forumTable.getThreadEvents({ participantId: data.participantId, itemId: data.itemId })).resolves.toEqual([
         expect.objectContaining({ eventType: 'attempt_started' }),
         expect.objectContaining({ eventType: 'submission' }),
         expect.objectContaining({ eventType: 'follow', userId: followerUserId }),

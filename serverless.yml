@@ -44,11 +44,11 @@ functions:
     events:
       - websocket:
           route: $connect
-  # disconnection:
-  #   handler: src/threads/unfollow.handler
-  #   events:
-  #     - websocket:
-  #         route: $disconnect
+  disconnection:
+    handler: src/threads/disconnection.handler
+    events:
+      - websocket:
+          route: $disconnect
   open-thread:
     handler: src/threads/openThread.handler
     events:
@@ -64,6 +64,11 @@ functions:
     events:
       - websocket:
           route: follow
+  unfollow:
+    handler: src/threads/unfollow.handler
+    events:
+      - websocket:
+          route: unfollow
 plugins:
   - serverless-plugin-typescript
   - serverless-dynamodb-local

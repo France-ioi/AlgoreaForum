@@ -1,6 +1,6 @@
 import { dynamodb } from '../dynamodb';
 import { deleteAll, getAll, loadFixture } from '../testutils/db';
-import { ForumTable } from './table';
+import { ForumTable, ThreadEvent } from './table';
 
 describe('Forum table', () => {
   const forumTable = new ForumTable(dynamodb);
@@ -19,7 +19,7 @@ describe('Forum table', () => {
 
     it('should omit wrong entries', async () => {
       await loadFixture([{ pk, time: 1, eventType: 'unknown_type' }, { pk, time: 2, eventType: 'thread_opened', byUserId: '12' }]);
-      await expect(forumTable.getThreadEvents(participantId, itemId)).resolves.toEqual([
+      await expect(forumTable.getThreadEvents({ participantId, itemId })).resolves.toEqual([
         { pk, time: 2, eventType: 'thread_opened', byUserId: '12' },
       ]);
     });
@@ -31,7 +31,7 @@ describe('Forum table', () => {
         { pk, time: 2, eventType: 'thread_opened', byUserId: userId1 },
         { pk, time: 3, eventType: 'thread_closed', byUserId: userId2 },
       ]);
-      await expect(forumTable.getThreadEvents(participantId, itemId)).resolves.toEqual([{
+      await expect(forumTable.getThreadEvents({ participantId, itemId })).resolves.toEqual([{
         pk,
         time: 2,
         eventType: 'thread_opened',
@@ -45,7 +45,7 @@ describe('Forum table', () => {
     });
 
     it('should succeed with no matching records', async () => {
-      await expect(forumTable.getThreadEvents('abc', 'def')).resolves.toEqual([]);
+      await expect(forumTable.getThreadEvents({ participantId: 'abc', itemId: 'def' })).resolves.toEqual([]);
     });
 
     it('should let aws errors bubble', async () => {
@@ -53,7 +53,7 @@ describe('Forum table', () => {
       queryStub.mockImplementationOnce(() => {
         throw error;
       });
-      await expect(forumTable.getThreadEvents('abc', 'def')).rejects.toBe(error);
+      await expect(forumTable.getThreadEvents({ participantId: 'abc', itemId: 'def' })).rejects.toBe(error);
     });
 
     it('should retrieve events in reverse order', async () => {
@@ -63,7 +63,7 @@ describe('Forum table', () => {
         { pk, time: 2, eventType: 'thread_opened', byUserId: userId1 },
         { pk, time: 3, eventType: 'thread_closed', byUserId: userId2 },
       ]);
-      await expect(forumTable.getThreadEvents(participantId, itemId, { asc: false })).resolves.toEqual([{
+      await expect(forumTable.getThreadEvents({ participantId, itemId, asc: false })).resolves.toEqual([{
         pk,
         time: 3,
         eventType: 'thread_closed',
@@ -83,7 +83,7 @@ describe('Forum table', () => {
         { pk, time: 2, eventType: 'thread_opened', byUserId: userId1 },
         { pk, time: 3, eventType: 'thread_closed', byUserId: userId2 },
       ]);
-      await expect(forumTable.getThreadEvents(participantId, itemId, { limit: 1 })).resolves.toEqual([{
+      await expect(forumTable.getThreadEvents({ participantId, itemId, limit: 1 })).resolves.toEqual([{
         pk,
         time: 2,
         eventType: 'thread_opened',
@@ -99,8 +99,25 @@ describe('Forum table', () => {
         { pk, time: 3, eventType: 'thread_closed', byUserId: userId2 },
         { pk, time: 4, eventType: 'thread_opened', byUserId: userId2 },
       ]);
-      await expect(forumTable.getThreadEvents(participantId, itemId, { eventType: 'thread_opened' })).resolves.toEqual([
+      await expect(forumTable.getThreadEvents({ participantId, itemId, filters: { eventType: 'thread_opened' } })).resolves.toEqual([
         { pk, time: 2, eventType: 'thread_opened', byUserId: userId1 },
+        { pk, time: 4, eventType: 'thread_opened', byUserId: userId2 },
+      ]);
+    });
+
+    it('should filter by type and user id', async () => {
+      const userId1 = 'userId1';
+      const userId2 = 'userId2';
+      await loadFixture([
+        { pk, time: 2, eventType: 'thread_opened', byUserId: userId1 },
+        { pk, time: 3, eventType: 'thread_closed', byUserId: userId2 },
+        { pk, time: 4, eventType: 'thread_opened', byUserId: userId2 },
+      ]);
+      await expect(forumTable.getThreadEvents({
+        participantId,
+        itemId,
+        filters: { eventType: 'thread_opened', byUserId: userId2 },
+      })).resolves.toEqual([
         { pk, time: 4, eventType: 'thread_opened', byUserId: userId2 },
       ]);
     });
@@ -187,6 +204,37 @@ describe('Forum table', () => {
       await expect(forumTable.addThreadEvents([
         { participantId: 'abc', itemId: 'def', eventType: 'thread_opened', byUserId: 'toto' },
       ])).rejects.toBe(error);
+    });
+  });
+
+  describe('removeThreadEvent()', () => {
+    const participantId = 'addMultiThreadParticipantId';
+    const itemId = 'addMultiThreadItemId';
+    // @ts-ignore
+    const deleteItemStub = jest.spyOn(forumTable.db, 'deleteItem');
+
+    it('should remove the targeted event only', async () => {
+      const pk = ForumTable.getThreadId(participantId, itemId);
+      const time = 1;
+      const userId = 'userId';
+      const threadOpened: ThreadEvent = { pk, time, eventType: 'thread_opened', byUserId: userId };
+      await loadFixture([
+        threadOpened,
+        { pk, time: 2, eventType: 'thread_opened', byUserId: 'otherUserId' },
+      ]);
+      await forumTable.removeThreadEvent({ pk, time });
+      const all = await getAll();
+      expect(all.Items).toBeDefined();
+      expect(all.Items).toHaveLength(1);
+      expect(all.Items).not.toContainEqual(threadOpened);
+    });
+
+    it('should let aws errors bubble', async () => {
+      const error = new Error('oops');
+      deleteItemStub.mockImplementationOnce(() => {
+        throw error;
+      });
+      await expect(forumTable.removeThreadEvent({ pk: '1234', time: 1 })).rejects.toBe(error);
     });
   });
 });

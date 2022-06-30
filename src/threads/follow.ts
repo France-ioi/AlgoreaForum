@@ -29,7 +29,7 @@ export const handler: APIGatewayProxyHandler = async event => {
       userId,
     });
 
-    const events = await forumTable.getThreadEvents(participantId, itemId, { limit: 20, asc: false });
+    const events = await forumTable.getThreadEvents({ participantId, itemId, limit: 20, asc: false });
     await send(connectionId, events);
 
     return ok();

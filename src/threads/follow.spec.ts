@@ -1,71 +1,66 @@
-import * as parsers from '../utils/parsers';
 import * as messages from './messages';
-import { mockCallback, mockContext, mockEvent } from '../testutils/lambda';
+import { callHandler } from '../testutils/lambda';
 import { tokenData } from '../testutils/mocks';
 import { handler } from './follow';
 import { ForumTable, ThreadEvent } from './table';
 import { badRequest, serverError, unauthorized } from '../utils/responses';
+import { deleteAll, getAll, loadFixture } from '../testutils/db';
+import { fromDBItem } from '../dynamodb';
 
 describe('follow', () => {
   const connectionId = 'connectionId';
-  const getTokenDataStub = jest.spyOn(parsers, 'extractTokenData');
-  const getConnectionIdStub = jest.spyOn(parsers, 'getConnectionId');
-  const addThreadEventStub = jest.spyOn(ForumTable.prototype, 'addThreadEvent');
-  const getThreadEventsStub = jest.spyOn(ForumTable.prototype, 'getThreadEvents');
+  const data = tokenData(1);
+  let sendStub = jest.spyOn(messages, 'send');
 
   beforeEach(() => {
-    jest.resetAllMocks();
-    getConnectionIdStub.mockReturnValue(connectionId);
-    addThreadEventStub.mockReturnValue(Promise.resolve({} as any));
-    getThreadEventsStub.mockReturnValue(Promise.resolve([]));
+    jest.restoreAllMocks();
+    sendStub = jest.spyOn(messages, 'send');
+    sendStub.mockImplementation(() => Promise.resolve());
+  });
+
+  it('should return "bad request" when no connection id', async () => {
+    await expect(callHandler(handler)).resolves.toEqual(badRequest());
   });
 
   it('should fail when token data is invalid', async () => {
-    getTokenDataStub.mockReturnValueOnce(null);
-    await expect(handler(mockEvent(), mockContext(), mockCallback())).resolves.toEqual(unauthorized());
+    await expect(callHandler(handler, { connectionId })).resolves.toEqual(unauthorized());
   });
 
   it('should fail when adding follow event fails', async () => {
-    const data = tokenData(2);
-    getTokenDataStub.mockReturnValueOnce(data);
-    addThreadEventStub.mockReturnValueOnce(Promise.reject(new Error('...')));
-    await expect(handler(mockEvent(), mockContext(), mockCallback())).resolves.toEqual(serverError());
-    expect(addThreadEventStub).toHaveBeenCalledTimes(1);
+    const stub = jest.spyOn(ForumTable.prototype, 'addThreadEvent');
+    stub.mockRejectedValue(new Error());
+    await expect(callHandler(handler, { connectionId, tokenData: data })).resolves.toEqual(serverError());
+    expect(stub).toHaveBeenCalledTimes(1);
   });
 
   it('should fail when listing last events fails', async () => {
-    const data = tokenData(2);
-    getTokenDataStub.mockReturnValueOnce(data);
-    getThreadEventsStub.mockReturnValueOnce(Promise.reject(new Error('...')));
-    await expect(handler(mockEvent(), mockContext(), mockCallback())).resolves.toEqual(serverError());
-    expect(getThreadEventsStub).toHaveBeenCalledTimes(1);
-  });
-
-  it('should fail when parsing the connection id fails', async () => {
-    const data = tokenData(2);
-    getTokenDataStub.mockReturnValueOnce(data);
-    getConnectionIdStub.mockImplementationOnce(() => null);
-    await expect(handler(mockEvent(), mockContext(), mockCallback())).resolves.toEqual(badRequest());
-    expect(addThreadEventStub).not.toHaveBeenCalled();
+    const stub = jest.spyOn(ForumTable.prototype, 'getThreadEvents');
+    stub.mockRejectedValue(new Error());
+    await expect(callHandler(handler, { connectionId, tokenData: data })).resolves.toEqual(serverError());
+    expect(stub).toHaveBeenCalledTimes(1);
   });
 
   describe('with valid data', () => {
-    const data = tokenData(1);
-    const last20Events: ThreadEvent[] = [];
-    const sendStub = jest.spyOn(messages, 'send');
+    const pk = ForumTable.getThreadId(data.participantId, data.itemId);
+    const last20Events = Array.from({ length: 20 }, (_, index): ThreadEvent => ({
+      pk,
+      time: (index + 1) * 10,
+      eventType: index % 2 === 0 ? 'thread_opened' : 'thread_closed',
+      byUserId: `${data.userId}-${index + 1}`,
+    }));
+    const last19Events = last20Events.slice(1).reverse();
 
     beforeEach(async () => {
-      sendStub.mockImplementation(() => Promise.resolve());
-      getThreadEventsStub.mockReturnValue(Promise.resolve(last20Events));
-      getTokenDataStub.mockReturnValue(data);
-      addThreadEventStub.mockReturnValue(Promise.resolve({} as any));
-      getConnectionIdStub.mockReturnValue(connectionId);
-      await handler(mockEvent(), mockContext(), mockCallback());
+      await deleteAll();
+      await loadFixture(last20Events);
+      await callHandler(handler, { connectionId, tokenData: data });
     });
 
-    it('should have added a thread event "follow"', () => {
-      expect(addThreadEventStub).toHaveBeenCalledTimes(1);
-      expect(addThreadEventStub).toHaveBeenLastCalledWith(data.participantId, data.itemId, {
+    it('should have added a thread event "follow"', async () => {
+      const result = await getAll();
+      expect(result.Items?.map(fromDBItem)).toContainEqual({
+        pk: expect.any(String),
+        time: expect.any(Number),
         eventType: 'follow',
         connectionId,
         userId: data.userId,
@@ -73,16 +68,19 @@ describe('follow', () => {
       });
     });
 
-    it('should send last 20 events to new connection', () => {
-      expect(getThreadEventsStub).toHaveBeenCalledTimes(1);
-      expect(getThreadEventsStub).toHaveBeenLastCalledWith({
-        participantId: data.participantId,
-        itemId: data.itemId,
-        limit: 20,
-        asc: false,
-      });
+    it('should send last 20 events to new connection including new "follow" event', () => {
       expect(sendStub).toHaveBeenCalledTimes(1);
-      expect(sendStub).toHaveBeenLastCalledWith(connectionId, last20Events);
+      expect(sendStub).toHaveBeenLastCalledWith(connectionId, [
+        expect.objectContaining({
+          pk: expect.any(String),
+          time: expect.any(Number),
+          eventType: 'follow', // the event we added by actually following the thread
+          userId: data.userId,
+          connectionId,
+          ttl: expect.any(Number),
+        }),
+        ...last19Events,
+      ]);
     });
   });
 });

@@ -51,12 +51,19 @@ const submissionEventDecoder = pipe(
   }))
 );
 
+const messageEventDecoder = D.struct({
+  eventType: D.literal('message'),
+  userId: D.string,
+  content: D.string,
+});
+
 const threadEventInput = D.union(
   threadOpenedEventDecoder,
   threadClosedEventDecoder,
   followEventInputDecoder,
   attemptStartedEventDecoder,
   submissionEventDecoder,
+  messageEventDecoder,
 );
 export type ThreadEventInput = D.TypeOf<typeof threadEventInput>;
 

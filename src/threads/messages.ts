@@ -1,4 +1,5 @@
 import { ApiGatewayManagementApi } from '@aws-sdk/client-apigatewaymanagementapi';
+import { ThreadStatus } from './hasThread';
 import type { FollowEvent, ThreadEvent } from './table';
 
 const gatewayApi = process.env.NODE_ENV === 'test' ? {} as ApiGatewayManagementApi : new ApiGatewayManagementApi({
@@ -7,8 +8,11 @@ const gatewayApi = process.env.NODE_ENV === 'test' ? {} as ApiGatewayManagementA
 });
 
 type UnfollowEvent = Omit<FollowEvent, 'eventType'> & { eventType: 'unfollow' };
+interface ThreadStatusMessage {
+  status: ThreadStatus,
+}
 
-type Message = ThreadEvent | UnfollowEvent;
+type Message = ThreadEvent | UnfollowEvent | ThreadStatusMessage;
 
 export const send = async (connectionId: string, messages: Message[]): Promise<void> => {
   // AWS uses PascalCase for naming convention while we don't. Deactivate the rule for AWS functions and re-enable it right after.

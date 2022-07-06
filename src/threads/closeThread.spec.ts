@@ -1,77 +1,64 @@
-const sendAllStub = jest.fn(() => Promise.resolve());
-jest.mock('./messages.ts', () => ({
-  sendAll: sendAllStub,
-}));
-import { dynamodb } from '../dynamodb';
-import * as parsers from '../utils/parsers';
-import { deleteAll } from '../testutils/db';
-import { mockCallback, mockContext, mockEvent } from '../testutils/lambda';
+import { fromDBItem } from '../dynamodb';
+import { deleteAll, getAll, loadFixture } from '../testutils/db';
+import { callHandler } from '../testutils/lambda';
 import { tokenData } from '../testutils/mocks';
 import { ok, serverError, unauthorized } from '../utils/responses';
 import { handler } from './closeThread';
-import { ForumTable } from './table';
+import { ForumTable, ThreadEvent } from './table';
+import * as messages from './messages';
 
 describe('close thread', () => {
-  const forumTable = new ForumTable(dynamodb);
-  const getTokenDataStub = jest.spyOn(parsers, 'extractTokenData');
-  const addThreadEventStub = jest.spyOn(ForumTable.prototype, 'addThreadEvent');
-  addThreadEventStub.mockReturnValue(Promise.resolve({} as any));
+  const data = tokenData(1);
+  const pk = ForumTable.getThreadId(data.participantId, data.itemId);
+  let sendAllStub = jest.spyOn(messages, 'sendAll');
 
   beforeEach(async () => {
-    jest.resetAllMocks();
+    jest.restoreAllMocks();
+    sendAllStub = jest.spyOn(messages, 'sendAll');
+    sendAllStub.mockImplementation(() => Promise.resolve());
     await deleteAll();
   });
 
   it('should fail when token data is invalid', async () => {
-    getTokenDataStub.mockReturnValueOnce(null);
-    await expect(handler(mockEvent(), mockContext(), mockCallback())).resolves.toEqual(unauthorized());
+    await expect(callHandler(handler)).resolves.toEqual(unauthorized());
   });
 
   it('should succeed when token data is valid', async () => {
-    getTokenDataStub.mockReturnValueOnce(tokenData(1));
-    await expect(handler(mockEvent(), mockContext(), mockCallback())).resolves.toEqual(ok());
+    await expect(callHandler(handler, { tokenData: data })).resolves.toEqual(ok());
   });
 
   it('should fail gracefully when adding thread closed event fails', async () => {
-    const data = tokenData(2);
-    getTokenDataStub.mockReturnValueOnce(data);
-    addThreadEventStub.mockReturnValueOnce(Promise.reject(new Error('...')));
-    await expect(handler(mockEvent(), mockContext(), mockCallback())).resolves.toEqual(serverError());
+    const addThreadEventStub = jest.spyOn(ForumTable.prototype, 'addThreadEvent');
+    addThreadEventStub.mockRejectedValue(new Error());
+    await expect(callHandler(handler, { tokenData: data })).resolves.toEqual(serverError());
     expect(addThreadEventStub).toHaveBeenCalledTimes(1);
-    expect(addThreadEventStub).toHaveBeenLastCalledWith(
-      data.participantId,
-      data.itemId,
-      { eventType: 'thread_closed', byUserId: data.userId },
-    );
   });
 
   it('should add an event "thread_closed" to the forum table', async () => {
-    const data = tokenData(4);
-    getTokenDataStub.mockReturnValueOnce(data);
-    await handler(mockEvent(), mockContext(), mockCallback());
-    expect(addThreadEventStub).toHaveBeenCalledTimes(1);
-    expect(addThreadEventStub).toHaveBeenLastCalledWith(
-      data.participantId,
-      data.itemId,
-      { eventType: 'thread_closed', byUserId: data.userId },
-    );
+    await callHandler(handler, { tokenData: data });
+    const result = await getAll();
+    expect(result.Items?.map(fromDBItem)).toEqual([{
+      pk,
+      time: expect.any(Number),
+      eventType: 'thread_closed',
+      byUserId: data.userId,
+    }]);
   });
 
   it('should notify all followers', async () => {
-    const data = tokenData(1);
-    addThreadEventStub.mockRestore();
-    getTokenDataStub.mockReturnValueOnce(data);
-    const followerUserId = 'followerUserId';
-    const followerConnectionId = 'followerConnectionId';
-    await forumTable.addThreadEvent(data.participantId, data.itemId, {
+    const followEvent1: ThreadEvent = {
+      pk,
+      time: 1,
       eventType: 'follow',
-      userId: followerUserId,
-      connectionId: followerConnectionId,
-      ttl: 12,
-    });
-    await handler(mockEvent(), mockContext(), mockCallback());
+      connectionId: 'followerConnectionId',
+      userId: 'followerUserId1',
+      ttl: 10000,
+    };
+    const followEvent2: ThreadEvent = { ...followEvent1, time: 2, connectionId: 'connectionId2', userId: 'userId2' };
+    await loadFixture([ followEvent1, followEvent2 ]);
+    await callHandler(handler, { tokenData: data });
     expect(sendAllStub).toHaveBeenCalledTimes(1);
-    expect(sendAllStub).toHaveBeenLastCalledWith([ followerConnectionId ], [{
+    expect(sendAllStub).toHaveBeenLastCalledWith([ followEvent1.connectionId, followEvent2.connectionId ], [{
       pk: expect.any(String),
       time: expect.any(Number),
       eventType: 'thread_closed',

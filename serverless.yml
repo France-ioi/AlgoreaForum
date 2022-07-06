@@ -69,6 +69,11 @@ functions:
     events:
       - websocket:
           route: unfollow
+  has-thread:
+    handler: src/threads/hasThread.handler
+    events:
+      - websocket:
+          route: has-thread
 plugins:
   - serverless-plugin-typescript
   - serverless-dynamodb-local

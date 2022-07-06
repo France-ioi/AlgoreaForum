@@ -27,7 +27,7 @@ describe('hasThread handler', () => {
   });
 
   it('should let aws error bubble', async () => {
-    const stub = jest.spyOn(ForumTable.prototype, 'getThreadEvents');
+    const stub = jest.spyOn(ForumTable.prototype, 'getThreadStatus');
     stub.mockRejectedValueOnce(new Error('oops'));
     await expect(callHandler(handler, { connectionId, tokenData: data })).resolves.toEqual(serverError());
   });

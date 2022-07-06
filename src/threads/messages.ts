@@ -1,6 +1,5 @@
 import { ApiGatewayManagementApi } from '@aws-sdk/client-apigatewaymanagementapi';
-import { ThreadStatus } from './hasThread';
-import type { FollowEvent, ThreadEvent } from './table';
+import type { FollowEvent, ThreadEvent, ThreadStatus } from './table';
 
 const gatewayApi = process.env.NODE_ENV === 'test' ? {} as ApiGatewayManagementApi : new ApiGatewayManagementApi({
   apiVersion: '2018-11-29',

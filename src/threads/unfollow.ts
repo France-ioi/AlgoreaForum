@@ -1,6 +1,6 @@
 import type { APIGatewayProxyHandler } from 'aws-lambda';
 import { dynamodb } from '../dynamodb';
-import { extractTokenData, getConnectionId } from '../utils/parsers';
+import { extractTokenData } from '../utils/parsers';
 import { badRequest, ok, serverError, unauthorized } from '../utils/responses';
 import { sendAll } from './messages';
 import { ForumTable } from './table';
@@ -8,8 +8,7 @@ import { ForumTable } from './table';
 const forumTable = new ForumTable(dynamodb);
 
 export const handler: APIGatewayProxyHandler = async event => {
-  const connectionId = getConnectionId(event);
-  if (!connectionId) return badRequest('connectionId is required');
+  if (!event.requestContext.connectionId) return badRequest('connectionId is required');
   const tokenData = extractTokenData(event);
   if (!tokenData) return unauthorized();
   const { participantId, itemId, userId } = tokenData;
@@ -19,7 +18,7 @@ export const handler: APIGatewayProxyHandler = async event => {
       participantId,
       itemId,
       limit: 1,
-      filters: { userId, connectionId },
+      filters: { userId, connectionId: event.requestContext.connectionId },
     });
 
     if (!followEvent) return ok();

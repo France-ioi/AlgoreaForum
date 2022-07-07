@@ -27,19 +27,6 @@ describe('parsers', () => {
     });
   });
 
-  describe('getConnectionId()', () => {
-    it('should return null when no data', () => {
-      expect(parsers.getConnectionId({ requestContext: {} } as APIGatewayProxyEvent)).toBe(null);
-      expect(parsers.getConnectionId({ requestContext: { connectionId: '' } } as APIGatewayProxyEvent)).toBe(null);
-      expect(parsers.getConnectionId({ requestContext: { connectionId: undefined } } as APIGatewayProxyEvent)).toBe(null);
-    });
-
-    it('should return connection id', () => {
-      const connectionId = 'connectionId';
-      expect(parsers.getConnectionId({ requestContext: { connectionId } } as APIGatewayProxyEvent)).toBe(connectionId);
-    });
-  });
-
   describe('getPayload()', () => {
     it('should return null when no data', () => {
       expect(parsers.getPayload({} as APIGatewayProxyEvent)).toBe(null);

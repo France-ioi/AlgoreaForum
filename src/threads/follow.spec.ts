@@ -1,6 +1,6 @@
 import * as messages from './messages';
 import { callHandler } from '../testutils/lambda';
-import { tokenData } from '../testutils/mocks';
+import { mockTokenData } from '../testutils/mocks';
 import { handler } from './follow';
 import { ForumTable, ThreadEvent } from './table';
 import { badRequest, serverError, unauthorized } from '../utils/responses';
@@ -9,7 +9,7 @@ import { fromDBItem } from '../dynamodb';
 
 describe('follow', () => {
   const connectionId = 'connectionId';
-  const data = tokenData(1);
+  const tokenData = mockTokenData(1);
   let sendStub = jest.spyOn(messages, 'send');
 
   beforeEach(() => {
@@ -29,31 +29,31 @@ describe('follow', () => {
   it('should fail when adding follow event fails', async () => {
     const stub = jest.spyOn(ForumTable.prototype, 'addThreadEvent');
     stub.mockRejectedValue(new Error());
-    await expect(callHandler(handler, { connectionId, tokenData: data })).resolves.toEqual(serverError());
+    await expect(callHandler(handler, { connectionId, tokenData })).resolves.toEqual(serverError());
     expect(stub).toHaveBeenCalledTimes(1);
   });
 
   it('should fail when listing last events fails', async () => {
     const stub = jest.spyOn(ForumTable.prototype, 'getThreadEvents');
     stub.mockRejectedValue(new Error());
-    await expect(callHandler(handler, { connectionId, tokenData: data })).resolves.toEqual(serverError());
+    await expect(callHandler(handler, { connectionId, tokenData })).resolves.toEqual(serverError());
     expect(stub).toHaveBeenCalledTimes(1);
   });
 
   describe('with valid data', () => {
-    const pk = ForumTable.getThreadId(data.participantId, data.itemId);
+    const pk = ForumTable.getThreadId(tokenData.participantId, tokenData.itemId);
     const last20Events = Array.from({ length: 20 }, (_, index): ThreadEvent => ({
       pk,
       time: (index + 1) * 10,
       eventType: index % 2 === 0 ? 'thread_opened' : 'thread_closed',
-      byUserId: `${data.userId}-${index + 1}`,
+      byUserId: `${tokenData.userId}-${index + 1}`,
     }));
     const last19Events = last20Events.slice(1).reverse();
 
     beforeEach(async () => {
       await deleteAll();
       await loadFixture(last20Events);
-      await callHandler(handler, { connectionId, tokenData: data });
+      await callHandler(handler, { connectionId, tokenData });
     });
 
     it('should have added a thread event "follow"', async () => {
@@ -63,7 +63,7 @@ describe('follow', () => {
         time: expect.any(Number),
         eventType: 'follow',
         connectionId,
-        userId: data.userId,
+        userId: tokenData.userId,
         ttl: expect.any(Number),
       });
     });
@@ -75,7 +75,7 @@ describe('follow', () => {
           pk: expect.any(String),
           time: expect.any(Number),
           eventType: 'follow', // the event we added by actually following the thread
-          userId: data.userId,
+          userId: tokenData.userId,
           connectionId,
           ttl: expect.any(Number),
         }),

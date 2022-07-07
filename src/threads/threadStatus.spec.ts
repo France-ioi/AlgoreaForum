@@ -1,13 +1,13 @@
 import { deleteAll, loadFixture } from '../testutils/db';
 import { callHandler } from '../testutils/lambda';
-import { tokenData } from '../testutils/mocks';
+import { mockTokenData } from '../testutils/mocks';
 import { badRequest, ok, serverError, unauthorized } from '../utils/responses';
 import { handler } from './threadStatus';
 import { ForumTable, ThreadEvent } from './table';
 import * as messages from './messages';
 
 describe('hasThread handler', () => {
-  const data = tokenData(1);
+  const tokenData = mockTokenData(1);
   const connectionId = 'connectionId';
   let sendStub = jest.spyOn(messages, 'send');
 
@@ -29,15 +29,14 @@ describe('hasThread handler', () => {
   it('should let aws error bubble', async () => {
     const stub = jest.spyOn(ForumTable.prototype, 'getThreadStatus');
     stub.mockRejectedValueOnce(new Error('oops'));
-    await expect(callHandler(handler, { connectionId, tokenData: data })).resolves.toEqual(serverError());
+    await expect(callHandler(handler, { connectionId, tokenData })).resolves.toEqual(serverError());
   });
 
   describe('success cases', () => {
-    // const callHandler = () => handler(event, mockContext(), mockCallback());
-    const pk = ForumTable.getThreadId(data.participantId, data.itemId);
+    const pk = ForumTable.getThreadId(tokenData.participantId, tokenData.itemId);
 
     it('should return thread status none', async () => {
-      await expect(callHandler(handler, { connectionId, tokenData: data })).resolves.toEqual(ok());
+      await expect(callHandler(handler, { connectionId, tokenData })).resolves.toEqual(ok());
       expect(sendStub).toHaveBeenCalledWith(connectionId, [{ status: 'none' }]);
     });
 
@@ -47,7 +46,7 @@ describe('hasThread handler', () => {
       const closedEvent2: ThreadEvent = { pk, time: 3, eventType: 'thread_closed', byUserId: '1' };
       await loadFixture([ openedEvent, closedEvent1, closedEvent2 ]);
 
-      await expect(callHandler(handler, { connectionId, tokenData: data })).resolves.toEqual(ok());
+      await expect(callHandler(handler, { connectionId, tokenData })).resolves.toEqual(ok());
       expect(sendStub).toHaveBeenCalledWith(connectionId, [{ status: 'closed' }]);
     });
 
@@ -55,7 +54,7 @@ describe('hasThread handler', () => {
       const closedEvent: ThreadEvent = { pk, time: 2, eventType: 'thread_closed', byUserId: '1' };
       await loadFixture([ closedEvent ]);
 
-      await expect(callHandler(handler, { connectionId, tokenData: data })).resolves.toEqual(ok());
+      await expect(callHandler(handler, { connectionId, tokenData })).resolves.toEqual(ok());
       expect(sendStub).toHaveBeenCalledWith(connectionId, [{ status: 'closed' }]);
     });
 
@@ -64,7 +63,7 @@ describe('hasThread handler', () => {
       const closedEvent: ThreadEvent = { pk, time: 2, eventType: 'thread_closed', byUserId: '1' };
       const openedEvent2: ThreadEvent = { pk, time: 3, eventType: 'thread_opened', byUserId: '1' };
       await loadFixture([ openedEvent1, closedEvent, openedEvent2 ]);
-      await expect(callHandler(handler, { connectionId, tokenData: data })).resolves.toEqual(ok());
+      await expect(callHandler(handler, { connectionId, tokenData })).resolves.toEqual(ok());
       expect(sendStub).toHaveBeenCalledWith(connectionId, [{ status: 'opened' }]);
     });
 
@@ -72,7 +71,7 @@ describe('hasThread handler', () => {
       const openedEvent: ThreadEvent = { pk, time: 1, eventType: 'thread_opened', byUserId: '1' };
       await loadFixture([ openedEvent ]);
 
-      await expect(callHandler(handler, { connectionId, tokenData: data })).resolves.toEqual(ok());
+      await expect(callHandler(handler, { connectionId, tokenData })).resolves.toEqual(ok());
       expect(sendStub).toHaveBeenCalledWith(connectionId, [{ status: 'opened' }]);
     });
   });

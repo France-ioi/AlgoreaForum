@@ -2,7 +2,7 @@ import { fromDBItem } from '../dynamodb';
 import * as messages from './messages';
 import { deleteAll, getAll, loadFixture } from '../testutils/db';
 import { callHandler } from '../testutils/lambda';
-import { historyMocks, tokenData } from '../testutils/mocks';
+import { historyMocks, mockTokenData } from '../testutils/mocks';
 import { badRequest, forbidden, ok, serverError, unauthorized } from '../utils/responses';
 import { activityLogToThreadData, handler } from './openThread';
 import { ForumTable, ThreadEvent } from './table';
@@ -10,8 +10,8 @@ import { ForumTable, ThreadEvent } from './table';
 describe('threads', () => {
   const connectionId = 'connectionId';
   const body = { history: [] };
-  const data = tokenData(1);
-  const pk = ForumTable.getThreadId(data.participantId, data.itemId);
+  const tokenData = mockTokenData(1);
+  const pk = ForumTable.getThreadId(tokenData.participantId, tokenData.itemId);
   let sendAllStub = jest.spyOn(messages, 'sendAll');
 
   beforeEach(async () => {
@@ -22,6 +22,9 @@ describe('threads', () => {
   });
 
   describe('open thread', () => {
+    const item = { id: tokenData.itemId };
+    const participant = { id: tokenData.participantId };
+
     it('should fail when no connection id', async () => {
       await expect(callHandler(handler)).resolves.toEqual(badRequest());
     });
@@ -33,14 +36,14 @@ describe('threads', () => {
     });
 
     it('should fail when no history is provided in body', async () => {
-      await expect(callHandler(handler, { connectionId, tokenData: data }))
+      await expect(callHandler(handler, { connectionId, tokenData }))
         .resolves
         .toEqual(badRequest('"history" is required'));
     });
 
     it('should forbid action when thread does not belong to the user and s-he cannot watch the participant', async () => {
-      const data = tokenData(3, { isMine: false, canWatchParticipant: false });
-      await expect(callHandler(handler, { connectionId, tokenData: data, body }))
+      const tokenData = mockTokenData(3, { isMine: false, canWatchParticipant: false });
+      await expect(callHandler(handler, { connectionId, tokenData, body }))
         .resolves
         .toEqual(forbidden());
     });
@@ -48,50 +51,45 @@ describe('threads', () => {
     it('should fail when adding thread events fails', async () => {
       const stub = jest.spyOn(ForumTable.prototype, 'addThreadEvents');
       stub.mockRejectedValue(new Error('...'));
-      await expect(callHandler(handler, { connectionId, tokenData: data, body }))
+      await expect(callHandler(handler, { connectionId, tokenData, body }))
         .resolves
         .toEqual(serverError());
       expect(stub).toHaveBeenCalled();
     });
 
     it('should succeed when token data is valid', async () => {
-      await expect(callHandler(handler, { connectionId, tokenData: data, body })).resolves.toEqual(ok());
+      await expect(callHandler(handler, { connectionId, tokenData, body })).resolves.toEqual(ok());
     });
 
     it('should add an event "thread_opened" to the forum table', async () => {
-      await callHandler(handler, { connectionId, tokenData: data, body });
+      await callHandler(handler, { connectionId, tokenData, body });
       const result = await getAll();
       expect(result.Items?.map(fromDBItem)).toContainEqual({
         pk,
         time: expect.any(Number),
         eventType: 'thread_opened',
-        byUserId: data.userId,
+        byUserId: tokenData.userId,
       });
     });
 
     it('should add thread opener as follower', async () => {
-      await callHandler(handler, { connectionId, tokenData: data, body });
+      await callHandler(handler, { connectionId, tokenData, body });
       const result = await getAll();
       expect(result.Items?.map(fromDBItem)).toContainEqual({
         pk,
         time: expect.any(Number),
         eventType: 'follow',
-        userId: data.userId,
+        userId: tokenData.userId,
         connectionId,
         ttl: expect.any(Number),
       });
     });
 
     it('should add history as thread events', async () => {
-      const resultStarted = historyMocks.resultStarted({ item: { id: data.itemId }, participant: { id: data.participantId } });
-      const resultValidated = historyMocks.resultValidated({ item: { id: data.itemId }, participant: { id: data.participantId } });
-      await expect(callHandler(handler, {
-        connectionId,
-        tokenData: data,
-        body: {
-          history: [ resultStarted, resultValidated ],
-        },
-      })).resolves.toEqual(ok());
+      const resultStarted = historyMocks.resultStarted({ item, participant });
+      const resultValidated = historyMocks.resultValidated({ item, participant });
+      const body = { history: [ resultStarted, resultValidated ] };
+      await expect(callHandler(handler, { connectionId, tokenData, body })).resolves.toEqual(ok());
       const result = await getAll();
       const threadEvents = result.Items?.map(fromDBItem);
       expect(threadEvents).toContainEqual({
@@ -112,8 +110,8 @@ describe('threads', () => {
     });
 
     it('should notify all followers', async () => {
-      const resultStarted = historyMocks.resultStarted({ item: { id: data.itemId }, participant: { id: data.participantId } });
-      const resultValidated = historyMocks.resultValidated({ item: { id: data.itemId }, participant: { id: data.participantId } });
+      const resultStarted = historyMocks.resultStarted({ item, participant });
+      const resultValidated = historyMocks.resultValidated({ item, participant });
       const followerUserId = 'followerUserId';
       const followerConnectionId = 'followerConnectionId';
       const followEvent: ThreadEvent = {
@@ -124,17 +122,14 @@ describe('threads', () => {
         connectionId: followerConnectionId,
         ttl: 1000,
       };
+      const body = { history: [ resultStarted, resultValidated ] };
       await loadFixture([ followEvent ]);
-      await callHandler(handler, {
-        connectionId,
-        tokenData: data,
-        body: { history: [ resultStarted, resultValidated ] },
-      });
+      await callHandler(handler, { connectionId, tokenData, body });
       expect(sendAllStub).toHaveBeenCalledTimes(1);
       expect(sendAllStub).toHaveBeenLastCalledWith([ followerConnectionId, connectionId ], [
         expect.objectContaining({ eventType: 'attempt_started' }),
         expect.objectContaining({ eventType: 'submission' }),
-        expect.objectContaining({ eventType: 'thread_opened', byUserId: data.userId }),
+        expect.objectContaining({ eventType: 'thread_opened', byUserId: tokenData.userId }),
       ]);
 
       const result = await getAll();
@@ -142,8 +137,8 @@ describe('threads', () => {
         expect.objectContaining({ eventType: 'attempt_started' }),
         expect.objectContaining({ eventType: 'submission' }),
         expect.objectContaining({ eventType: 'follow', userId: followerUserId }),
-        expect.objectContaining({ eventType: 'follow', userId: data.userId }),
-        expect.objectContaining({ eventType: 'thread_opened', byUserId: data.userId }),
+        expect.objectContaining({ eventType: 'follow', userId: tokenData.userId }),
+        expect.objectContaining({ eventType: 'thread_opened', byUserId: tokenData.userId }),
       ]);
     });
   });

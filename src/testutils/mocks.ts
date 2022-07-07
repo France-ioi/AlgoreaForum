@@ -1,10 +1,10 @@
 import { TokenData } from '../utils/parsers';
 import { ActivityLog } from '../threads/openThread';
 
-export const tokenData = (n: number, rest?: Partial<TokenData>): TokenData => ({
-  participantId: `openThreadParticipantId-${n}`,
-  itemId: `openThreadItemId-${n}`,
-  userId: `openThreadUserId-${n}`,
+export const mockTokenData = (suffix: number | string, rest?: Partial<TokenData>): TokenData => ({
+  participantId: `openThreadParticipantId-${suffix}`,
+  itemId: `openThreadItemId-${suffix}`,
+  userId: `openThreadUserId-${suffix}`,
   isMine: true,
   canWatchParticipant: true,
   ...rest,

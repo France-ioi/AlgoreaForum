@@ -74,6 +74,8 @@ interface ListOptions<Filters extends Record<string, any>> {
   filters?: Partial<Filters>,
 }
 
+export type ThreadStatus = 'none' | 'closed' | 'opened';
+
 // AWS uses PascalCase for everything, so we need to disable temporarily the casing lint rules
 /* eslint-disable @typescript-eslint/naming-convention */
 export class ForumTable {
@@ -183,6 +185,36 @@ export class ForumTable {
         time: toAttributeValue(threadEvent.time),
       },
     });
+  }
+
+  async getThreadStatus(participantId: string, itemId: string): Promise<ThreadStatus> {
+    const pk = ForumTable.getThreadId(participantId, itemId);
+    const result = await this.db.query({
+      TableName: this.tableName,
+      KeyConditionExpression: 'pk = :tid',
+      FilterExpression: 'eventType = :opened OR eventType = :closed',
+      ScanIndexForward: false,
+      Limit: 2,
+      ExpressionAttributeValues: {
+        ':tid': toAttributeValue(pk),
+        ':opened': toAttributeValue('thread_opened'),
+        ':closed': toAttributeValue('thread_closed'),
+      },
+    });
+    const events = (result.Items || [])
+      .map(fromDBItem)
+      .map(decode(threadEventDecoder))
+      .filter(isNotNull);
+    const opened = events.find(event => event.eventType === 'thread_opened');
+    const closed = events.find(event => event.eventType === 'thread_closed');
+    return this.threadStatusFromEvents(opened, closed);
+  }
+
+  private threadStatusFromEvents(threadOpenedEvent?: ThreadEvent, threadClosedEvent?: ThreadEvent): ThreadStatus {
+    if (!threadOpenedEvent && !threadClosedEvent) return 'none';
+    const threadOpenedTime = threadOpenedEvent?.time || 0;
+    if (!threadClosedEvent || threadClosedEvent.time < threadOpenedTime) return 'opened';
+    return 'closed';
   }
 }
 /* eslint-enable @typescript-eslint/naming-convention */

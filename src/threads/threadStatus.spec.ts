@@ -2,7 +2,7 @@ import { deleteAll, loadFixture } from '../testutils/db';
 import { callHandler } from '../testutils/lambda';
 import { tokenData } from '../testutils/mocks';
 import { badRequest, ok, serverError, unauthorized } from '../utils/responses';
-import { handler } from './hasThread';
+import { handler } from './threadStatus';
 import { ForumTable, ThreadEvent } from './table';
 import * as messages from './messages';
 

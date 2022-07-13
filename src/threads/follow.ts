@@ -1,6 +1,6 @@
 import type { APIGatewayProxyHandler } from 'aws-lambda';
 import { dynamodb } from '../dynamodb';
-import { extractTokenData, getConnectionId } from '../utils/parsers';
+import { extractTokenData } from '../utils/parsers';
 import { badRequest, ok, serverError, unauthorized } from '../utils/responses';
 import { send } from './messages';
 import { ForumTable } from './table';
@@ -15,8 +15,7 @@ const hours = 60 * minutes;
 export const followTtl = 12 * hours;
 
 export const handler: APIGatewayProxyHandler = async event => {
-  const connectionId = getConnectionId(event);
-  if (!connectionId) return badRequest();
+  if (!event.requestContext.connectionId) return badRequest();
   const tokenData = extractTokenData(event);
   if (!tokenData) return unauthorized();
   const { participantId, itemId, userId } = tokenData;
@@ -24,13 +23,13 @@ export const handler: APIGatewayProxyHandler = async event => {
   try {
     await forumTable.addThreadEvent(participantId, itemId, {
       eventType: 'follow',
-      connectionId,
+      connectionId: event.requestContext.connectionId,
       ttl: followTtl,
       userId,
     });
 
     const events = await forumTable.getThreadEvents({ participantId, itemId, limit: 20, asc: false });
-    await send(connectionId, events);
+    await send(event.requestContext.connectionId, events);
 
     return ok();
   } catch {

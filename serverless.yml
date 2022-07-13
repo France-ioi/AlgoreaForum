@@ -74,6 +74,11 @@ functions:
     events:
       - websocket:
           route: thread-status
+  send-message:
+    handler: src/threads/sendMessage.handler
+    events:
+      - websocket:
+          route: send-message
 plugins:
   - serverless-plugin-typescript
   - serverless-dynamodb-local

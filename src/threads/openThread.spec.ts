@@ -1,158 +1,144 @@
-const sendAllStub = jest.fn(() => Promise.resolve());
-jest.mock('./messages.ts', () => ({
-  sendAll: sendAllStub,
-}));
-import { dynamodb } from '../dynamodb';
-import * as parsers from '../utils/parsers';
-import { deleteAll } from '../testutils/db';
-import { mockCallback, mockContext, mockEvent } from '../testutils/lambda';
-import { historyMocks, tokenData } from '../testutils/mocks';
+import { fromDBItem } from '../dynamodb';
+import * as messages from './messages';
+import { deleteAll, getAll, loadFixture } from '../testutils/db';
+import { callHandler } from '../testutils/lambda';
+import { historyMocks, mockTokenData } from '../testutils/mocks';
 import { badRequest, forbidden, ok, serverError, unauthorized } from '../utils/responses';
 import { activityLogToThreadData, handler } from './openThread';
-import { ForumTable } from './table';
+import { ForumTable, ThreadEvent } from './table';
 
 describe('threads', () => {
-  const forumTable = new ForumTable(dynamodb);
   const connectionId = 'connectionId';
-  const getTokenDataStub = jest.spyOn(parsers, 'extractTokenData');
-  const addThreadEventsStub = jest.spyOn(ForumTable.prototype, 'addThreadEvents');
+  const body = { history: [] };
+  const tokenData = mockTokenData(1);
+  const pk = ForumTable.getThreadId(tokenData.participantId, tokenData.itemId);
+  let sendAllStub = jest.spyOn(messages, 'sendAll');
 
   beforeEach(async () => {
-    jest.resetAllMocks();
-    addThreadEventsStub.mockResolvedValue([{}, {}] as any) ;
+    jest.restoreAllMocks();
+    sendAllStub = jest.spyOn(messages, 'sendAll');
+    sendAllStub.mockResolvedValue();
     await deleteAll();
   });
 
   describe('open thread', () => {
+    const item = { id: tokenData.itemId };
+    const participant = { id: tokenData.participantId };
+
     it('should fail when no connection id', async () => {
-      await expect(handler(mockEvent(), mockContext(), mockCallback())).resolves.toEqual(badRequest());
+      await expect(callHandler(handler)).resolves.toEqual(badRequest());
     });
 
-    it('should fail when token data is invalid', async () => {
-      getTokenDataStub.mockReturnValueOnce(null);
-      await expect(handler(mockEvent({ connectionId, body: { history: [] } }), mockContext(), mockCallback()))
+    it('should fail without token data', async () => {
+      await expect(callHandler(handler, { connectionId }))
         .resolves
         .toEqual(unauthorized());
     });
 
     it('should fail when no history is provided in body', async () => {
-      getTokenDataStub.mockReturnValueOnce(tokenData(1));
-      await expect(handler(mockEvent({ connectionId }), mockContext(), mockCallback()))
+      await expect(callHandler(handler, { connectionId, tokenData }))
         .resolves
         .toEqual(badRequest('"history" is required'));
     });
 
-    it('should succeed when token data is valid', async () => {
-      getTokenDataStub.mockReturnValueOnce(tokenData(1));
-      await expect(handler(mockEvent({ connectionId, body: { history: [] } }), mockContext(), mockCallback())).resolves.toEqual(ok());
+    it('should forbid action when thread does not belong to the user and s-he cannot watch the participant', async () => {
+      const tokenData = mockTokenData(3, { isMine: false, canWatchParticipant: false });
+      await expect(callHandler(handler, { connectionId, tokenData, body }))
+        .resolves
+        .toEqual(forbidden());
     });
 
     it('should fail when adding thread events fails', async () => {
-      const data = tokenData(2);
-      getTokenDataStub.mockReturnValueOnce(data);
-      addThreadEventsStub.mockRejectedValue(new Error('...'));
-      await expect(handler(mockEvent({ connectionId, body: { history: [] } }), mockContext(), mockCallback()))
+      const stub = jest.spyOn(ForumTable.prototype, 'addThreadEvents');
+      stub.mockRejectedValue(new Error('...'));
+      await expect(callHandler(handler, { connectionId, tokenData, body }))
         .resolves
         .toEqual(serverError());
-      expect(addThreadEventsStub).toHaveBeenCalled();
+      expect(stub).toHaveBeenCalled();
     });
 
-    it('should forbid action when thread does not belong to the user and s-he cannot watch the participant', async () => {
-      const data = tokenData(3, { isMine: false, canWatchParticipant: false });
-      getTokenDataStub.mockReturnValueOnce(data);
-      await expect(handler(mockEvent({ connectionId, body: { history: [] } }), mockContext(), mockCallback()))
-        .resolves
-        .toEqual(forbidden());
-      expect(addThreadEventsStub).not.toHaveBeenCalled();
+    it('should succeed when token data is valid', async () => {
+      await expect(callHandler(handler, { connectionId, tokenData, body })).resolves.toEqual(ok());
     });
 
     it('should add an event "thread_opened" to the forum table', async () => {
-      const data = tokenData(4);
-      getTokenDataStub.mockReturnValueOnce(data);
-      await handler(mockEvent({ connectionId, body: { history: [] } }), mockContext(), mockCallback());
-      expect(addThreadEventsStub).toHaveBeenCalledWith(expect.arrayContaining([{
-        participantId: data.participantId,
-        itemId: data.itemId,
+      await callHandler(handler, { connectionId, tokenData, body });
+      const result = await getAll();
+      expect(result.Items?.map(fromDBItem)).toContainEqual({
+        pk,
+        time: expect.any(Number),
         eventType: 'thread_opened',
-        byUserId: data.userId,
-      }]));
+        byUserId: tokenData.userId,
+      });
     });
 
     it('should add thread opener as follower', async () => {
-      const data = tokenData(4);
-      getTokenDataStub.mockReturnValueOnce(data);
-      await handler(mockEvent({ connectionId, body: { history: [] } }), mockContext(), mockCallback());
-
-      expect(addThreadEventsStub).toHaveBeenCalledWith(expect.arrayContaining([{
-        participantId: data.participantId,
-        itemId: data.itemId,
+      await callHandler(handler, { connectionId, tokenData, body });
+      const result = await getAll();
+      expect(result.Items?.map(fromDBItem)).toContainEqual({
+        pk,
+        time: expect.any(Number),
         eventType: 'follow',
-        userId: data.userId,
+        userId: tokenData.userId,
         connectionId,
         ttl: expect.any(Number),
-      }]));
+      });
     });
 
     it('should add history as thread events', async () => {
-      const data = tokenData(10);
-      getTokenDataStub.mockReturnValueOnce(data);
-      const resultStarted = historyMocks.resultStarted({ item: { id: data.itemId }, participant: { id: data.participantId } });
-      const resultValidated = historyMocks.resultValidated({ item: { id: data.itemId }, participant: { id: data.participantId } });
-      await expect(handler(mockEvent({
-        connectionId,
-        body: {
-          history: [ resultStarted, resultValidated ],
-        },
-      }), mockContext(), mockCallback())).resolves.toEqual(ok());
-      expect(addThreadEventsStub).toHaveBeenCalledWith(expect.arrayContaining([
-        expect.objectContaining({
-          participantId: data.participantId,
-          itemId: data.itemId,
-          eventType: 'attempt_started',
-          time: resultStarted.at.valueOf(),
-        }),
-        expect.objectContaining({
-          participantId: data.participantId,
-          itemId: data.itemId,
-          eventType: 'submission',
-          time: resultValidated.at.valueOf(),
-        }),
-      ]));
+      const resultStarted = historyMocks.resultStarted({ item, participant });
+      const resultValidated = historyMocks.resultValidated({ item, participant });
+      const body = { history: [ resultStarted, resultValidated ] };
+      await expect(callHandler(handler, { connectionId, tokenData, body })).resolves.toEqual(ok());
+      const result = await getAll();
+      const threadEvents = result.Items?.map(fromDBItem);
+      expect(threadEvents).toContainEqual({
+        pk,
+        time: resultStarted.at.valueOf(),
+        eventType: 'attempt_started',
+        attemptId: resultStarted.attemptId,
+      });
+      expect(threadEvents).toContainEqual({
+        pk,
+        time: resultValidated.at.valueOf(),
+        eventType: 'submission',
+        attemptId: resultValidated.attemptId,
+        answerId: resultValidated.answerId,
+        score: resultValidated.score,
+        validated: true,
+      });
     });
 
     it('should notify all followers', async () => {
-      const data = tokenData(1);
-      addThreadEventsStub.mockRestore();
-      getTokenDataStub.mockReturnValueOnce(data);
+      const resultStarted = historyMocks.resultStarted({ item, participant });
+      const resultValidated = historyMocks.resultValidated({ item, participant });
       const followerUserId = 'followerUserId';
       const followerConnectionId = 'followerConnectionId';
-      await forumTable.addThreadEvent(data.participantId, data.itemId, {
+      const followEvent: ThreadEvent = {
+        pk,
+        time: Date.now() - 100000, // a tiny bit in the past
         eventType: 'follow',
         userId: followerUserId,
         connectionId: followerConnectionId,
-        ttl: 12,
-      });
-      const resultStarted = historyMocks.resultStarted({ item: { id: data.itemId }, participant: { id: data.participantId } });
-      const resultValidated = historyMocks.resultValidated({ item: { id: data.itemId }, participant: { id: data.participantId } });
-      const eventMock = mockEvent({
-        connectionId,
-        body: { history: [ resultStarted, resultValidated ] },
-      });
-      await handler(eventMock, mockContext(), mockCallback());
-
+        ttl: 1000,
+      };
+      const body = { history: [ resultStarted, resultValidated ] };
+      await loadFixture([ followEvent ]);
+      await callHandler(handler, { connectionId, tokenData, body });
       expect(sendAllStub).toHaveBeenCalledTimes(1);
       expect(sendAllStub).toHaveBeenLastCalledWith([ followerConnectionId, connectionId ], [
         expect.objectContaining({ eventType: 'attempt_started' }),
         expect.objectContaining({ eventType: 'submission' }),
-        expect.objectContaining({ eventType: 'thread_opened', byUserId: data.userId }),
+        expect.objectContaining({ eventType: 'thread_opened', byUserId: tokenData.userId }),
       ]);
 
-      await expect(forumTable.getThreadEvents({ participantId: data.participantId, itemId: data.itemId })).resolves.toEqual([
+      const result = await getAll();
+      expect(result.Items?.map(fromDBItem)).toEqual([
         expect.objectContaining({ eventType: 'attempt_started' }),
         expect.objectContaining({ eventType: 'submission' }),
         expect.objectContaining({ eventType: 'follow', userId: followerUserId }),
-        expect.objectContaining({ eventType: 'follow', userId: data.userId }),
-        expect.objectContaining({ eventType: 'thread_opened', byUserId: data.userId }),
+        expect.objectContaining({ eventType: 'follow', userId: tokenData.userId }),
+        expect.objectContaining({ eventType: 'thread_opened', byUserId: tokenData.userId }),
       ]);
     });
   });

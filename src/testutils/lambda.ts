@@ -9,18 +9,16 @@ interface HandlerEventMockOptions {
   tokenData?: TokenData,
 }
 
-export const mockEvent = ({ connectionId, body, tokenData }: HandlerEventMockOptions = {}): any => ({
+const mockEvent = ({ connectionId, body, tokenData }: HandlerEventMockOptions = {}): any => ({
   requestContext: { connectionId },
   body: body || tokenData ? JSON.stringify({ ...body, token: tokenData }) : undefined,
 });
-export const mockContext = (): any => ({});
-export const mockCallback = (): any => ({});
 
 export const callHandler = async (
   handler: APIGatewayProxyHandler,
   options: HandlerEventMockOptions = {},
 ): Promise<APIGatewayProxyResult> => {
-  const result = await handler(mockEvent(options), mockContext(), mockCallback());
+  const result = await handler(mockEvent(options), {} as any, (() => {}) as any);
   // @ts-ignore
   return result;
 };

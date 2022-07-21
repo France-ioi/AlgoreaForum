@@ -1,11 +1,10 @@
 import { TokenData } from '../utils/parsers';
 import { ActivityLog } from '../threads/openThread';
-import { FollowEvent, ForumTable, ThreadEvent } from '../threads/table';
 
-export const tokenData = (n: number, rest?: Partial<TokenData>): TokenData => ({
-  participantId: `openThreadParticipantId-${n}`,
-  itemId: `openThreadItemId-${n}`,
-  userId: `openThreadUserId-${n}`,
+export const mockTokenData = (suffix: number | string, rest?: Partial<TokenData>): TokenData => ({
+  participantId: `openThreadParticipantId-${suffix}`,
+  itemId: `openThreadItemId-${suffix}`,
+  userId: `openThreadUserId-${suffix}`,
   isMine: true,
   canWatchParticipant: true,
   ...rest,
@@ -54,14 +53,3 @@ export const historyMocks = {
     ...overrides,
   }),
 };
-
-export const followEventMock = (participantId: string, itemId: string, overrides: Partial<FollowEvent>): ThreadEvent => ({
-  eventType: 'follow',
-  connectionId: 'connectionId',
-  // @ts-ignore
-  pk: ForumTable.getThreadId(participantId, itemId),
-  time: 42,
-  ttl: 3600,
-  userId: 'userId',
-  ...overrides,
-});

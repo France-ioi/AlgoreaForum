@@ -201,7 +201,6 @@ export class ForumTable {
       KeyConditionExpression: 'pk = :tid',
       FilterExpression: 'eventType = :opened OR eventType = :closed',
       ScanIndexForward: false,
-      Limit: 2,
       ExpressionAttributeValues: {
         ':tid': toAttributeValue(pk),
         ':opened': toAttributeValue('thread_opened'),

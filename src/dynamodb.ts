@@ -35,12 +35,14 @@ export const toAttributeValue = (value: unknown): AttributeValue => {
 export const fromAttributeValue = (attr: AttributeValue): unknown => {
   if (attr.S) return attr.S;
   if (attr.N) return Number(attr.N);
-  if (attr.BOOL) return attr.BOOL;
+  if (typeof attr.BOOL === 'boolean') return attr.BOOL;
   if (attr.NULL) return null;
   throw new Error(`unhandled value ${JSON.stringify(attr, null, 2)}`);
 };
 export const toDBItem = <T extends Record<string, any>>(value: T): Record<string, AttributeValue> => {
-  const entries = Object.entries(value).map(([ key, value ]): [string, AttributeValue] => [ key, toAttributeValue(value) ]);
+  const entries = Object.entries(value)
+    .filter(([ , value ]) => value !== undefined)
+    .map(([ key, value ]): [string, AttributeValue] => [ key, toAttributeValue(value) ]);
   return Object.fromEntries(entries);
 };
 export const fromDBItem = (item: Record<string, AttributeValue>): Record<string, unknown> => {

@@ -17,7 +17,6 @@ export const handler: APIGatewayProxyHandler = async event => {
     const [ followEvent ] = await forumTable.getFollowers({
       participantId,
       itemId,
-      limit: 1,
       filters: { userId, connectionId: event.requestContext.connectionId },
     });
 

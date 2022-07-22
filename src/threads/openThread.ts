@@ -27,15 +27,12 @@ export const handler: APIGatewayProxyHandler = async event => {
     const [ , threadOpenedEvent, ...eventsImportedFromHistory ] = await forumTable.addThreadEvents([
       { participantId, itemId, eventType: 'follow', ttl: followTtl, connectionId, userId },
       { participantId, itemId, eventType: 'thread_opened', byUserId: userId },
-      ...payload.history.map(log => {
-        const event = activityLogToThreadData(log);
-        return event && {
-          participantId: event.participantId,
-          itemId: event.itemId,
-          time: event.at.valueOf(),
-          ...event.input,
-        };
-      }).filter(isNotNull),
+      ...payload.history.map(activityLogToThreadData).filter(isNotNull).map(event => ({
+        participantId: event.participantId,
+        itemId: event.itemId,
+        time: event.at.valueOf(),
+        ...event.input,
+      })),
     ]);
     if (!threadOpenedEvent) throw new Error('threadOpened must exist');
     const followers = await forumTable.getFollowers({ participantId, itemId });
@@ -50,7 +47,7 @@ export const handler: APIGatewayProxyHandler = async event => {
 
 const activityLogDecoder = pipe(
   D.struct({
-    activityType: D.literal('result_started', 'submission', 'result_validated'),
+    activityType: D.literal('result_started', 'submission', 'result_validated', 'saved_answer', 'current_answer'),
     attemptId: D.string,
     at: dateDecoder,
     item: D.struct({

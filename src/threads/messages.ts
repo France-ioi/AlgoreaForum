@@ -24,5 +24,6 @@ export const send = async (connectionId: string, messages: Message[]): Promise<v
 };
 
 export const sendAll = async (connectionIds: string[], messages: Message[]): Promise<void> => {
-  await Promise.all(connectionIds.map(connectionId => send(connectionId, messages)));
+  const uniqueIds = [ ...new Set(connectionIds) ];
+  await Promise.all(uniqueIds.map(connectionId => send(connectionId, messages)));
 };

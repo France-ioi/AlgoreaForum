@@ -11,11 +11,14 @@ describe('follow', () => {
   const connectionId = 'connectionId';
   const tokenData = mockTokenData(1);
   let sendStub = jest.spyOn(messages, 'send');
+  let sendAllStub = jest.spyOn(messages, 'sendAll');
 
   beforeEach(() => {
     jest.restoreAllMocks();
     sendStub = jest.spyOn(messages, 'send');
     sendStub.mockImplementation(() => Promise.resolve());
+    sendAllStub = jest.spyOn(messages, 'sendAll');
+    sendAllStub.mockImplementation(() => Promise.resolve());
   });
 
   it('should return "bad request" when no connection id', async () => {
@@ -37,7 +40,7 @@ describe('follow', () => {
     const stub = jest.spyOn(ForumTable.prototype, 'getThreadEvents');
     stub.mockRejectedValue(new Error());
     await expect(callHandler(handler, { connectionId, tokenData })).resolves.toEqual(serverError());
-    expect(stub).toHaveBeenCalledTimes(1);
+    expect(stub).toHaveBeenCalled();
   });
 
   describe('with valid data', () => {
@@ -69,7 +72,6 @@ describe('follow', () => {
     });
 
     it('should send last 20 events to new connection including new "follow" event', () => {
-      expect(sendStub).toHaveBeenCalledTimes(1);
       expect(sendStub).toHaveBeenLastCalledWith(connectionId, [
         expect.objectContaining({
           pk: expect.any(String),
@@ -80,6 +82,19 @@ describe('follow', () => {
           ttl: expect.any(Number),
         }),
         ...last19Events,
+      ]);
+    });
+
+    it('should send the new follow event to other followers', () => {
+      expect(sendAllStub).toHaveBeenCalledWith(expect.anything(), [
+        expect.objectContaining({
+          pk: expect.any(String),
+          time: expect.any(Number),
+          eventType: 'follow',
+          userId: tokenData.userId,
+          connectionId,
+          ttl: expect.any(Number),
+        }),
       ]);
     });
   });

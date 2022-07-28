@@ -129,6 +129,7 @@ describe('threads', () => {
       expect(sendAllStub).toHaveBeenLastCalledWith([ followerConnectionId, connectionId ], [
         expect.objectContaining({ eventType: 'attempt_started' }),
         expect.objectContaining({ eventType: 'submission' }),
+        expect.objectContaining({ eventType: 'follow', userId: tokenData.userId }),
         expect.objectContaining({ eventType: 'thread_opened', byUserId: tokenData.userId }),
       ]);
 

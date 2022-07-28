@@ -24,7 +24,7 @@ export const handler: APIGatewayProxyHandler = async event => {
   if (!payload) return badRequest('"history" is required');
 
   try {
-    const [ , threadOpenedEvent, ...eventsImportedFromHistory ] = await forumTable.addThreadEvents([
+    const [ followEvent, threadOpenedEvent, ...eventsImportedFromHistory ] = await forumTable.addThreadEvents([
       { participantId, itemId, eventType: 'follow', ttl: followTtl, connectionId, userId },
       { participantId, itemId, eventType: 'thread_opened', byUserId: userId },
       ...payload.history.map(activityLogToThreadData).filter(isNotNull).map(event => ({
@@ -34,10 +34,10 @@ export const handler: APIGatewayProxyHandler = async event => {
         ...event.input,
       })),
     ]);
-    if (!threadOpenedEvent) throw new Error('threadOpened must exist');
+    if (!threadOpenedEvent || !followEvent) throw new Error('threadOpened and followEvent must exist');
     const followers = await forumTable.getFollowers({ participantId, itemId });
     const connectionIds = followers.map(follower => follower.connectionId);
-    await sendAll(connectionIds, [ ...eventsImportedFromHistory, threadOpenedEvent ]);
+    await sendAll(connectionIds, [ ...eventsImportedFromHistory, followEvent, threadOpenedEvent ]);
 
     return ok();
   } catch {

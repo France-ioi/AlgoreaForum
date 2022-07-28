@@ -2,7 +2,7 @@ import type { APIGatewayProxyHandler } from 'aws-lambda';
 import { ForumTable, ThreadEventInput } from './table';
 import { extractTokenData, getPayload } from '../utils/parsers';
 import { dynamodb } from '../dynamodb';
-import { sendAll } from './messages';
+import { send, sendAll } from './messages';
 import { followTtl } from './follow';
 import { badRequest, forbidden, ok, serverError, unauthorized } from '../utils/responses';
 import { pipe } from 'fp-ts/function';
@@ -24,7 +24,7 @@ export const handler: APIGatewayProxyHandler = async event => {
   if (!payload) return badRequest('"history" is required');
 
   try {
-    const [ followEvent, threadOpenedEvent, ...eventsImportedFromHistory ] = await forumTable.addThreadEvents([
+    const [ followEvent, threadOpenedEvent ] = await forumTable.addThreadEvents([
       { participantId, itemId, eventType: 'follow', ttl: followTtl, connectionId, userId },
       { participantId, itemId, eventType: 'thread_opened', byUserId: userId },
       ...payload.history.map(activityLogToThreadData).filter(isNotNull).map(event => ({
@@ -34,10 +34,14 @@ export const handler: APIGatewayProxyHandler = async event => {
         ...event.input,
       })),
     ]);
-    if (!threadOpenedEvent || !followEvent) throw new Error('threadOpened and followEvent must exist');
-    const followers = await forumTable.getFollowers({ participantId, itemId });
-    const connectionIds = followers.map(follower => follower.connectionId);
-    await sendAll(connectionIds, [ ...eventsImportedFromHistory, followEvent, threadOpenedEvent ]);
+    if (!followEvent || !threadOpenedEvent) throw new Error('threadOpenedEvent and followEvent must be defined');
+    const [ last20Events, followers ] = await Promise.all([
+      forumTable.getThreadEvents({ itemId, participantId, asc: false, limit: 20 }),
+      forumTable.getFollowers({ participantId, itemId }),
+    ]);
+    const connectionIds = followers.map(follower => follower.connectionId).filter(id => id !== connectionId);
+    await send(connectionId, last20Events);
+    await sendAll(connectionIds, [ followEvent, threadOpenedEvent ]);
 
     return ok();
   } catch {

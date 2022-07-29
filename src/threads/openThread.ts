@@ -3,7 +3,6 @@ import { ForumTable, ThreadEventInput } from './table';
 import { extractTokenData, getPayload } from '../utils/parsers';
 import { dynamodb } from '../dynamodb';
 import { send, sendAll } from './messages';
-import { followTtl } from './follow';
 import { badRequest, forbidden, ok, serverError, unauthorized } from '../utils/responses';
 import { pipe } from 'fp-ts/function';
 import * as D from 'io-ts/Decoder';
@@ -24,9 +23,10 @@ export const handler: APIGatewayProxyHandler = async event => {
   if (!payload) return badRequest('"history" is required');
 
   try {
-    const [ selfFollower ] = await forumTable.getFollowers({ itemId, participantId, filters: { connectionId, userId } });
-    const [ followEvent, threadOpenedEvent ] = await forumTable.addThreadEvents([
-      { participantId, itemId, eventType: 'follow', ttl: followTtl, connectionId, userId, time: selfFollower?.time },
+    const statusBeforeOpening = await forumTable.getThreadStatus(participantId, itemId);
+    if (statusBeforeOpening === 'opened') return badRequest('Thread is already opened');
+
+    const [ threadOpenedEvent ] = await forumTable.addThreadEvents([
       { participantId, itemId, eventType: 'thread_opened', byUserId: userId },
       ...payload.history.map(activityLogToThreadData).filter(isNotNull).map(event => ({
         participantId: event.participantId,
@@ -35,14 +35,20 @@ export const handler: APIGatewayProxyHandler = async event => {
         ...event.input,
       })),
     ]);
-    if (!followEvent || !threadOpenedEvent) throw new Error('threadOpenedEvent and followEvent must be defined');
+
+    if (!threadOpenedEvent) throw new Error('threadOpenedEvent and followEvent must be defined');
     const [ last20Events, followers ] = await Promise.all([
       forumTable.getThreadEvents({ itemId, participantId, asc: false, limit: 20 }),
       forumTable.getFollowers({ participantId, itemId }),
     ]);
-    const connectionIds = followers.map(follower => follower.connectionId).filter(id => id !== connectionId);
-    await send(connectionId, last20Events);
-    await sendAll(connectionIds, [ selfFollower ? null : followEvent, threadOpenedEvent ].filter(isNotNull));
+    const lastEventsExceptFollow = last20Events.filter(event => event.eventType !== 'follow');
+    // Send the last events to opener except 'follow' because s-he already received those
+    await send(connectionId, lastEventsExceptFollow);
+
+    const isFirstOpening = statusBeforeOpening === 'none';
+    const otherConnectionIds = followers.map(follower => follower.connectionId).filter(id => id !== connectionId);
+    // if thread is opened for the first time, send to other followers the last events except 'follow' because they already received those
+    await sendAll(otherConnectionIds, isFirstOpening ? lastEventsExceptFollow : [ threadOpenedEvent ]);
 
     return ok();
   } catch {

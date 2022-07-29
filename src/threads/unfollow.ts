@@ -26,7 +26,7 @@ export const handler: APIGatewayProxyHandler = async event => {
     const followers = await forumTable.getFollowers({ participantId, itemId });
     await sendAll(
       followers.map(follower => follower.connectionId),
-      [{ ...followEvent, eventType: 'unfollow' }],
+      [{ ...followEvent, time: Date.now(), eventType: 'unfollow' }],
     );
 
     return ok();

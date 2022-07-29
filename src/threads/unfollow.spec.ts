@@ -76,7 +76,7 @@ describe('follow', () => {
 
     it('should notify other followers of the unfollow event', async () => {
       await callHandler(handler, { connectionId, tokenData });
-      const unfollowEvent = { ...followEventToDelete, eventType: 'unfollow' };
+      const unfollowEvent = { ...followEventToDelete, time: expect.any(Number), eventType: 'unfollow' };
       expect(sendAllStub).toHaveBeenCalledWith([ connectionId1, connectionId2 ], [ unfollowEvent ]);
     });
   });

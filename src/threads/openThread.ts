@@ -43,7 +43,7 @@ export const handler: APIGatewayProxyHandler = async event => {
     ]);
     const lastEventsExceptFollow = last20Events.filter(event => event.eventType !== 'follow');
     // Send the last events to opener except 'follow' because s-he already received those
-    await send(connectionId, lastEventsExceptFollow);
+    await send(connectionId, last20Events);
 
     const isFirstOpening = statusBeforeOpening === 'none';
     const otherConnectionIds = followers.map(follower => follower.connectionId).filter(id => id !== connectionId);

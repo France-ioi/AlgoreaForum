@@ -72,8 +72,9 @@ functions:
   thread-status:
     handler: src/threads/threadStatus.handler
     events:
-      - websocket:
-          route: thread-status
+      - httpApi:
+          method: POST
+          path: /thread-status
   send-message:
     handler: src/threads/sendMessage.handler
     events:

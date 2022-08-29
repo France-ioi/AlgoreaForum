@@ -36,7 +36,8 @@ export const handler: APIGatewayProxyHandler = async event => {
       })),
     ]);
 
-    if (!threadOpenedEvent) throw new Error('threadOpenedEvent and followEvent must be defined');
+    if (!threadOpenedEvent) throw new Error('threadOpenedEvent must be defined');
+
     const [ last20Events, followers ] = await Promise.all([
       forumTable.getThreadEvents({ itemId, participantId, asc: false, limit: 20 }),
       forumTable.getFollowers({ participantId, itemId }),

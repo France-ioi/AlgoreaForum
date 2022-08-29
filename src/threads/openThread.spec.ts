@@ -13,11 +13,14 @@ describe('threads', () => {
   const tokenData = mockTokenData(1);
   const pk = ForumTable.getThreadId(tokenData.participantId, tokenData.itemId);
   let sendAllStub = jest.spyOn(messages, 'sendAll');
+  let sendStub = jest.spyOn(messages, 'send');
 
   beforeEach(async () => {
     jest.restoreAllMocks();
     sendAllStub = jest.spyOn(messages, 'sendAll');
     sendAllStub.mockResolvedValue();
+    sendStub = jest.spyOn(messages, 'send');
+    sendStub.mockResolvedValue();
     await deleteAll();
   });
 
@@ -72,19 +75,6 @@ describe('threads', () => {
       });
     });
 
-    it('should add thread opener as follower', async () => {
-      await callHandler(handler, { connectionId, tokenData, body });
-      const result = await getAll();
-      expect(result.Items?.map(fromDBItem)).toContainEqual({
-        pk,
-        time: expect.any(Number),
-        eventType: 'follow',
-        userId: tokenData.userId,
-        connectionId,
-        ttl: expect.any(Number),
-      });
-    });
-
     it('should add history as thread events', async () => {
       const resultStarted = historyMocks.resultStarted({ item, participant });
       const resultValidated = historyMocks.resultValidated({ item, participant });
@@ -114,7 +104,7 @@ describe('threads', () => {
       const resultValidated = historyMocks.resultValidated({ item, participant });
       const followerUserId = 'followerUserId';
       const followerConnectionId = 'followerConnectionId';
-      const followEvent: ThreadEvent = {
+      const followerFollowEvent: ThreadEvent = {
         pk,
         time: Date.now() - 100000, // a tiny bit in the past
         eventType: 'follow',
@@ -122,15 +112,29 @@ describe('threads', () => {
         connectionId: followerConnectionId,
         ttl: 1000,
       };
+      const selfFollowEvent: ThreadEvent = {
+        pk,
+        time: Date.now() - 10000, // a tiny bit in the past but less than the follower-not-self
+        eventType: 'follow',
+        userId: tokenData.userId,
+        connectionId,
+        ttl: 1000,
+      };
       const body = { history: [ resultStarted, resultValidated ] };
-      await loadFixture([ followEvent ]);
+      await loadFixture([ followerFollowEvent, selfFollowEvent ]);
       await callHandler(handler, { connectionId, tokenData, body });
       expect(sendAllStub).toHaveBeenCalledTimes(1);
-      expect(sendAllStub).toHaveBeenLastCalledWith([ followerConnectionId, connectionId ], [
-        expect.objectContaining({ eventType: 'attempt_started' }),
-        expect.objectContaining({ eventType: 'submission' }),
-        expect.objectContaining({ eventType: 'follow', userId: tokenData.userId }),
+      expect(sendAllStub).toHaveBeenLastCalledWith([ followerConnectionId ], [
         expect.objectContaining({ eventType: 'thread_opened', byUserId: tokenData.userId }),
+        expect.objectContaining({ eventType: 'submission' }),
+        expect.objectContaining({ eventType: 'attempt_started' }),
+      ]);
+      expect(sendStub).toHaveBeenLastCalledWith(connectionId, [
+        expect.objectContaining({ eventType: 'thread_opened', byUserId: tokenData.userId }),
+        expect.objectContaining({ eventType: 'follow', userId: tokenData.userId }),
+        expect.objectContaining({ eventType: 'follow', userId: followerUserId }),
+        expect.objectContaining({ eventType: 'submission' }),
+        expect.objectContaining({ eventType: 'attempt_started' }),
       ]);
 
       const result = await getAll();

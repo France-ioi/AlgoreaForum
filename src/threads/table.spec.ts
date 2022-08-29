@@ -196,6 +196,32 @@ describe('Forum table', () => {
       });
     });
 
+    it('should add events with same time', async () => {
+      expect.assertions(1);
+      const time = 1;
+      await forumTable.addThreadEvents([
+        { participantId, itemId, eventType: 'thread_opened', byUserId: userId2, time },
+        { participantId, itemId, eventType: 'thread_closed', byUserId: userId2, time },
+        { participantId, itemId, eventType: 'message', userId: userId2, content: 'hello', time },
+      ]);
+      await expect(getAll()).resolves.toMatchObject({
+        Items: [
+          expect.objectContaining({
+            time: { N: time.toString() },
+            eventType: { S: 'thread_opened' },
+          }),
+          expect.objectContaining({
+            time: { N: (time + 1).toString() },
+            eventType: { S: 'thread_closed' },
+          }),
+          expect.objectContaining({
+            time: { N: (time + 2).toString() },
+            eventType: { S: 'message' },
+          }),
+        ],
+      });
+    });
+
     it('should let aws errors bubble', async () => {
       const error = new Error('oops');
       batchWriteItemStub.mockImplementationOnce(() => {

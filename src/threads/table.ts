@@ -164,17 +164,15 @@ export class ForumTable {
    */
   async addThreadEvents(input: (ThreadEventInput & { participantId: string, itemId: string, time?: number })[]): Promise<ThreadEvent[]> {
     const now = Date.now();
-    const createdEvents: ThreadEvent[] = input.map(({ participantId, itemId, time, ...threadEventInput }, index) => ({
+    const createdEvents: ThreadEvent[] = input.map(({ participantId, itemId, time, ...threadEventInput }) => ({
       ...threadEventInput,
       pk: ForumTable.getThreadId(participantId, itemId),
-      // NOTE: Why `now + index`:
-      // An array can issue 100~200 items per millisecond. We need to make sure created events won't override one another
-      time: time ?? (now + index),
+      time: time ?? now,
     }));
 
     await this.db.batchWriteItem({
       RequestItems: {
-        [this.tableName]: createdEvents.map(threadEvent => ({
+        [this.tableName]: withUniqueTime(createdEvents).map(threadEvent => ({
           PutRequest: {
             Item: toDBItem(threadEvent),
           },
@@ -224,3 +222,34 @@ export class ForumTable {
   }
 }
 /* eslint-enable @typescript-eslint/naming-convention */
+
+/**
+ * Finds time duplicates in an ordered manner:
+ * `findTimeDuplicate([{ pk: 'A', time: 1 }, { pk: 'B', time: 1 }])` returns B
+ */
+const findTimeDuplicate = <T extends { time: number }>(items: T[]): T | undefined => {
+  for (let i = 0; i < items.length; i++) {
+    const target = items[i]!;
+
+    // Start from i + 1 because if there was a duplicate before the target item, it would have already be found.
+    for (let j = i + 1; j < items.length; j++) {
+      const item = items[j]!;
+      const isDuplicate = item.time === target.time;
+      if (isDuplicate) return item;
+    }
+  }
+  return undefined;
+};
+
+/**
+ * Ensure time unicity in an array by adding a millisecond to duplicates and repeating treatment over and over on provided array.
+ */
+const withUniqueTime = <T extends { time: number }>(items: T[]): T[] => {
+  const copy = items.map(item => ({ ...item }));
+  let duplicate = findTimeDuplicate(copy);
+  while (duplicate) {
+    duplicate.time += 1; // the array is also modified since we keep the object reference in the `copy` array.
+    duplicate = findTimeDuplicate(copy);
+  }
+  return copy;
+};

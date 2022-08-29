@@ -1,43 +1,32 @@
 import { deleteAll, loadFixture } from '../testutils/db';
 import { callHandler } from '../testutils/lambda';
 import { mockTokenData } from '../testutils/mocks';
-import { badRequest, ok, serverError, unauthorized } from '../utils/responses';
+import { ok, serverError, unauthorized } from '../utils/responses';
 import { handler } from './threadStatus';
 import { ForumTable, ThreadEvent } from './table';
-import * as messages from './messages';
 
-describe('hasThread handler', () => {
+describe('threadStatus handler', () => {
   const tokenData = mockTokenData(1);
-  const connectionId = 'connectionId';
-  let sendStub = jest.spyOn(messages, 'send');
 
   beforeEach(async () => {
-    jest.restoreAllMocks();
-    sendStub = jest.spyOn(messages, 'send');
-    sendStub.mockImplementation(() => Promise.resolve());
     await deleteAll();
   });
 
-  it('should fail without connection id', async () => {
-    await expect(callHandler(handler)).resolves.toEqual(badRequest());
-  });
-
   it('should fail without token data', async () => {
-    await expect(callHandler(handler, { connectionId })).resolves.toEqual(unauthorized());
+    await expect(callHandler(handler, {})).resolves.toEqual(unauthorized());
   });
 
   it('should let aws error bubble', async () => {
     const stub = jest.spyOn(ForumTable.prototype, 'getThreadStatus');
     stub.mockRejectedValueOnce(new Error('oops'));
-    await expect(callHandler(handler, { connectionId, tokenData })).resolves.toEqual(serverError());
+    await expect(callHandler(handler, { tokenData })).resolves.toEqual(serverError());
   });
 
   describe('success cases', () => {
     const pk = ForumTable.getThreadId(tokenData.participantId, tokenData.itemId);
 
     it('should return thread status none', async () => {
-      await expect(callHandler(handler, { connectionId, tokenData })).resolves.toEqual(ok());
-      expect(sendStub).toHaveBeenCalledWith(connectionId, [{ status: 'none' }]);
+      await expect(callHandler(handler, { tokenData })).resolves.toEqual(ok(JSON.stringify({ status: 'none' })));
     });
 
     it('should return thread status "closed" when "closed" event is before "opened"', async () => {
@@ -46,16 +35,14 @@ describe('hasThread handler', () => {
       const closedEvent2: ThreadEvent = { pk, time: 3, eventType: 'thread_closed', byUserId: '1' };
       await loadFixture([ openedEvent, closedEvent1, closedEvent2 ]);
 
-      await expect(callHandler(handler, { connectionId, tokenData })).resolves.toEqual(ok());
-      expect(sendStub).toHaveBeenCalledWith(connectionId, [{ status: 'closed' }]);
+      await expect(callHandler(handler, { tokenData })).resolves.toEqual(ok(JSON.stringify({ status: 'closed' })));
     });
 
     it('should return thread status "closed" when a "closed" event exists and a "opened" does not', async () => {
       const closedEvent: ThreadEvent = { pk, time: 2, eventType: 'thread_closed', byUserId: '1' };
       await loadFixture([ closedEvent ]);
 
-      await expect(callHandler(handler, { connectionId, tokenData })).resolves.toEqual(ok());
-      expect(sendStub).toHaveBeenCalledWith(connectionId, [{ status: 'closed' }]);
+      await expect(callHandler(handler, { tokenData })).resolves.toEqual(ok(JSON.stringify({ status: 'closed' })));
     });
 
     it('should return thread status "opened" when "opened" event happened after "closed"', async () => {
@@ -63,16 +50,14 @@ describe('hasThread handler', () => {
       const closedEvent: ThreadEvent = { pk, time: 2, eventType: 'thread_closed', byUserId: '1' };
       const openedEvent2: ThreadEvent = { pk, time: 3, eventType: 'thread_opened', byUserId: '1' };
       await loadFixture([ openedEvent1, closedEvent, openedEvent2 ]);
-      await expect(callHandler(handler, { connectionId, tokenData })).resolves.toEqual(ok());
-      expect(sendStub).toHaveBeenCalledWith(connectionId, [{ status: 'opened' }]);
+      await expect(callHandler(handler, { tokenData })).resolves.toEqual(ok(JSON.stringify({ status: 'opened' })));
     });
 
     it('should return thread status "opened" when an "opened" event exist a "closed" does not', async () => {
       const openedEvent: ThreadEvent = { pk, time: 1, eventType: 'thread_opened', byUserId: '1' };
       await loadFixture([ openedEvent ]);
 
-      await expect(callHandler(handler, { connectionId, tokenData })).resolves.toEqual(ok());
-      expect(sendStub).toHaveBeenCalledWith(connectionId, [{ status: 'opened' }]);
+      await expect(callHandler(handler, { tokenData })).resolves.toEqual(ok(JSON.stringify({ status: 'opened' })));
     });
   });
 });

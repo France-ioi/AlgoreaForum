@@ -1,4 +1,4 @@
-service: forum
+service: algoreaforum
 frameworkVersion: '3'
 
 custom:

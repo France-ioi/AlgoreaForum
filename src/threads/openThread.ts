@@ -1,61 +1,50 @@
-import type { APIGatewayProxyHandler } from 'aws-lambda';
 import { ForumTable, ThreadEventInput } from './table';
-import { extractTokenData, getPayload } from '../utils/parsers';
+import { TokenData } from '../utils/parsers';
 import { dynamodb } from '../dynamodb';
-import { send, sendAll } from './messages';
-import { badRequest, forbidden, ok, serverError, unauthorized } from '../utils/responses';
 import { pipe } from 'fp-ts/function';
 import * as D from 'io-ts/Decoder';
-import { dateDecoder, decode } from '../utils/decode';
+import { dateDecoder, decode2 } from '../utils/decode';
 import { isNotNull } from '../utils/predicates';
+import { Forbidden, OperationSkipped, ServerError } from '../utils/errors';
+import { WSClient } from '../websocket-client';
 
 const forumTable = new ForumTable(dynamodb);
 
-export const handler: APIGatewayProxyHandler = async event => {
-  const { connectionId } = event.requestContext;
-  if (!connectionId) return badRequest();
-  const tokenData = extractTokenData(event);
-  if (!tokenData) return unauthorized();
-  const { participantId, itemId, userId, isMine, canWatchParticipant } = tokenData;
-  if (!isMine && !canWatchParticipant) return forbidden();
-
-  const payload = decode(D.struct({ history: D.array(activityLogDecoder) }))(getPayload(event));
-  if (!payload) return badRequest('"history" is required');
-
-  try {
-    const statusBeforeOpening = await forumTable.getThreadStatus(participantId, itemId);
-    if (statusBeforeOpening === 'opened') return badRequest('Thread is already opened');
-
-    const [ threadOpenedEvent ] = await forumTable.addThreadEvents([
-      { participantId, itemId, eventType: 'thread_opened', byUserId: userId },
-      ...payload.history.map(activityLogToThreadData).filter(isNotNull).map(event => ({
-        participantId: event.participantId,
-        itemId: event.itemId,
-        time: event.at.valueOf(),
-        ...event.input,
-      })),
-    ]);
-
-    if (!threadOpenedEvent) throw new Error('threadOpenedEvent must be defined');
-
-    const [ last20Events, followers ] = await Promise.all([
-      forumTable.getThreadEvents({ itemId, participantId, asc: false, limit: 20 }),
-      forumTable.getFollowers({ participantId, itemId }),
-    ]);
-    const lastEventsExceptFollow = last20Events.filter(event => event.eventType !== 'follow');
-    // Send the last events to opener except 'follow' because s-he already received those
-    await send(connectionId, last20Events);
-
-    const isFirstOpening = statusBeforeOpening === 'none';
-    const otherConnectionIds = followers.map(follower => follower.connectionId).filter(id => id !== connectionId);
-    // if thread is opened for the first time, send to other followers the last events except 'follow' because they already received those
-    await sendAll(otherConnectionIds, isFirstOpening ? lastEventsExceptFollow : [ threadOpenedEvent ]);
-
-    return ok();
-  } catch {
-    return serverError();
+export async function openThread(wsClient: WSClient, token: TokenData, payload: unknown): Promise<void> {
+  const { participantId, itemId, userId, isMine, canWatchParticipant } = token;
+  if (!isMine && !canWatchParticipant) {
+    throw new Forbidden(`This operation required isMine or canWatchParticipant, got ${JSON.stringify({ isMine, canWatchParticipant })} `);
   }
-};
+  const content = decode2(D.struct({ history: D.array(activityLogDecoder) }))(payload);
+
+  const statusBeforeOpening = await forumTable.getThreadStatus(participantId, itemId);
+  if (statusBeforeOpening === 'opened') throw new OperationSkipped(`Thread (${participantId}, ${itemId}) is already opened`);
+
+  const [ threadOpenedEvent ] = await forumTable.addThreadEvents([
+    { participantId, itemId, eventType: 'thread_opened', byUserId: userId },
+    ...content.history.map(activityLogToThreadData).filter(isNotNull).map(event => ({
+      participantId: event.participantId,
+      itemId: event.itemId,
+      time: event.at.valueOf(),
+      ...event.input,
+    })),
+  ]);
+
+  if (!threadOpenedEvent) throw new ServerError('threadOpenedEvent should be defined');
+
+  const [ last20Events, followers ] = await Promise.all([
+    forumTable.getThreadEvents({ itemId, participantId, asc: false, limit: 20 }),
+    forumTable.getFollowers({ participantId, itemId }),
+  ]);
+  const lastEventsExceptFollow = last20Events.filter(event => event.eventType !== 'follow');
+  // Send the last events to opener except 'follow' because s-he already received those
+  await wsClient.send(wsClient.connectionId, last20Events);
+
+  const isFirstOpening = statusBeforeOpening === 'none';
+  const otherConnectionIds = followers.map(follower => follower.connectionId).filter(id => id !== wsClient.connectionId);
+  // if thread is opened for the first time, send to other followers the last events except 'follow' because they already received those
+  await wsClient.sendAll(otherConnectionIds, isFirstOpening ? lastEventsExceptFollow : [ threadOpenedEvent ]);
+}
 
 const activityLogDecoder = pipe(
   D.struct({

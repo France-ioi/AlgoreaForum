@@ -52,7 +52,7 @@ functions:
       - websocket:
           route: $disconnect
   open-thread:
-    handler: src/threads/openThread.handler
+    handler: src/handlers/openThread.handler
     events:
       - websocket:
           route: open-thread

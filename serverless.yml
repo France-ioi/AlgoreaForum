@@ -73,10 +73,8 @@ functions:
           route: unfollow
   thread-status:
     handler: src/threads/threadStatus.handler
-    events:
-      - httpApi:
-          method: POST
-          path: /thread-status
+    url:
+      cors: true
   send-message:
     handler: src/threads/sendMessage.handler
     events:

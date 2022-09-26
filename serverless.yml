@@ -18,8 +18,8 @@ provider:
   environment:
     STAGE: ${opt:stage, 'dev'}
   runtime: nodejs14.x
-  httpApi:
-    cors: true
+  deploymentMethod: direct
+  region: eu-west-3
   iam:
     role:
       statements:

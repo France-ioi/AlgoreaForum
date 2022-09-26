@@ -4,7 +4,7 @@ frameworkVersion: '3'
 custom:
  dynamodb:
    stages:
-     - dev
+     - local
    start:
      port: 7000
      inMemory: true
@@ -15,6 +15,8 @@ custom:
 
 provider:
   name: aws
+  environment:
+    STAGE: ${opt:stage, 'dev'}
   runtime: nodejs14.x
   httpApi:
     cors: true

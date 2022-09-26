@@ -2,9 +2,10 @@
 import { AttributeValue, DynamoDB } from '@aws-sdk/client-dynamodb';
 
 const dynamoOptions = (): ConstructorParameters<typeof DynamoDB>[0] => {
-  switch (process.env.NODE_ENV) {
+  switch (process.env.STAGE) {
+    case 'dev':
     case 'production':
-      throw new Error('unhandled');
+      return {};
     case 'test':
       return {
         endpoint: 'http://localhost:8000',

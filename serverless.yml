@@ -42,12 +42,12 @@ provider:
 
 functions:
   connection:
-    handler: src/threads/connection.handler
+    handler: src/handlers/connection.handler
     events:
       - websocket:
           route: $connect
   disconnection:
-    handler: src/threads/disconnection.handler
+    handler: src/handlers/disconnection.handler
     events:
       - websocket:
           route: $disconnect

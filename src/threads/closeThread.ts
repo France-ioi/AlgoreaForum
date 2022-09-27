@@ -1,28 +1,18 @@
-import type { APIGatewayProxyHandler } from 'aws-lambda';
 import { dynamodb } from '../dynamodb';
-import { ok, serverError, unauthorized } from '../utils/responses';
-import { sendAll } from './messages';
-import { extractTokenData } from '../utils/parsers';
+import { TokenData } from '../utils/parsers';
 import { ForumTable } from './table';
+import { WSClient } from '../websocket-client';
 
 const forumTable = new ForumTable(dynamodb);
 
-export const handler: APIGatewayProxyHandler = async event => {
-  const tokenData = extractTokenData(event);
-  if (!tokenData) return unauthorized();
-  const { participantId, itemId, userId } = tokenData;
+export async function closeThread(wsClient: WSClient, token: TokenData): Promise<void> {
+  const { participantId, itemId, userId } = token;
 
-  try {
-    const threadClosedEvent = await forumTable.addThreadEvent(participantId, itemId, {
-      eventType: 'thread_closed',
-      byUserId: userId,
-    });
-    const followers = await forumTable.getFollowers({ participantId, itemId });
-    const connectionIds = followers.map(follower => follower.connectionId);
-    await sendAll(connectionIds, [ threadClosedEvent ]);
-
-    return ok();
-  } catch {
-    return serverError();
-  }
-};
+  const threadClosedEvent = await forumTable.addThreadEvent(participantId, itemId, {
+    eventType: 'thread_closed',
+    byUserId: userId,
+  });
+  const followers = await forumTable.getFollowers({ participantId, itemId });
+  const connectionIds = followers.map(follower => follower.connectionId);
+  await wsClient.sendAll(connectionIds, [ threadClosedEvent ]);
+}

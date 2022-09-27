@@ -57,7 +57,7 @@ functions:
       - websocket:
           route: open-thread
   close-thread:
-    handler: src/threads/closeThread.handler
+    handler: src/handlers/closeThread.handler
     events:
       - websocket:
           route: close-thread

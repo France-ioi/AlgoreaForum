@@ -62,12 +62,12 @@ functions:
       - websocket:
           route: close-thread
   follow:
-    handler: src/threads/follow.handler
+    handler: src/handlers/follow.handler
     events:
       - websocket:
           route: follow
   unfollow:
-    handler: src/threads/unfollow.handler
+    handler: src/handlers/unfollow.handler
     events:
       - websocket:
           route: unfollow

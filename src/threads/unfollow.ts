@@ -1,36 +1,26 @@
-import type { APIGatewayProxyHandler } from 'aws-lambda';
 import { dynamodb } from '../dynamodb';
-import { extractTokenData } from '../utils/parsers';
-import { badRequest, ok, serverError, unauthorized } from '../utils/responses';
-import { sendAll } from './messages';
+import { TokenData } from '../utils/parsers';
+import { WSClient } from '../websocket-client';
 import { ForumTable } from './table';
 
 const forumTable = new ForumTable(dynamodb);
 
-export const handler: APIGatewayProxyHandler = async event => {
-  if (!event.requestContext.connectionId) return badRequest('connectionId is required');
-  const tokenData = extractTokenData(event);
-  if (!tokenData) return unauthorized();
-  const { participantId, itemId, userId } = tokenData;
+export async function unfollow(wsClient: WSClient, token: TokenData): Promise<void> {
+  const { participantId, itemId, userId } = token;
 
-  try {
-    const [ followEvent ] = await forumTable.getFollowers({
-      participantId,
-      itemId,
-      filters: { userId, connectionId: event.requestContext.connectionId },
-    });
+  const [ followEvent ] = await forumTable.getFollowers({
+    participantId,
+    itemId,
+    filters: { userId, connectionId: wsClient.connectionId },
+  });
 
-    if (!followEvent) return ok();
+  if (!followEvent) return;
 
-    await forumTable.removeThreadEvent(followEvent);
-    const followers = await forumTable.getFollowers({ participantId, itemId });
-    await sendAll(
-      followers.map(follower => follower.connectionId),
-      [{ ...followEvent, time: Date.now(), eventType: 'unfollow' }],
-    );
+  await forumTable.removeThreadEvent(followEvent);
+  const followers = await forumTable.getFollowers({ participantId, itemId });
+  await wsClient.sendAll(
+    followers.map(follower => follower.connectionId),
+    [{ ...followEvent, time: Date.now(), eventType: 'unfollow' }],
+  );
 
-    return ok();
-  } catch {
-    return serverError();
-  }
-};
+}

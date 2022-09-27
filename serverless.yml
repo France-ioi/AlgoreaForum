@@ -76,7 +76,7 @@ functions:
     url:
       cors: true
   send-message:
-    handler: src/threads/sendMessage.handler
+    handler: src/handlers/sendMessage.handler
     events:
       - websocket:
           route: send-message

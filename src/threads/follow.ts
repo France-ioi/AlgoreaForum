@@ -1,6 +1,7 @@
 import { dynamodb } from '../dynamodb';
 import { TokenData } from '../utils/parsers';
-import { WSClient } from '../websocket-client';
+import { invalidConnectionIds, logSendResults, WSClient } from '../websocket-client';
+import { cleanupConnections } from './cleanup';
 import { ForumTable } from './table';
 
 const forumTable = new ForumTable(dynamodb);
@@ -26,12 +27,13 @@ export async function follow(wsClient: WSClient, token: TokenData): Promise<void
     userId,
   });
 
-  await Promise.all([
+  const sendResults = await Promise.all([
     wsClient.send(wsClient.connectionId, [ followEvent, ...events ]),
     wsClient.sendAll(
       followers.map(({ connectionId }) => connectionId),
       [ followEvent ],
     ),
-  ]);
-
+  ]).then(([ sendRes, sendAllRes ]) => [ sendRes, ...sendAllRes ]);
+  logSendResults(sendResults);
+  await cleanupConnections(wsClient, participantId, itemId, invalidConnectionIds(sendResults));
 }

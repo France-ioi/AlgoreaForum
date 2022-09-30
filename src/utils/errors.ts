@@ -6,7 +6,7 @@ export function logError(err: unknown): void {
   else console.error(errorToString(err));
 }
 
-function errorToString(err: unknown): string {
+export function errorToString(err: unknown): string {
   if (err instanceof Error || err instanceof Forbidden || err instanceof ServerError ||
     err instanceof DecodingError || err instanceof OperationSkipped) {
     return `${err.name}: ${err.message}`;

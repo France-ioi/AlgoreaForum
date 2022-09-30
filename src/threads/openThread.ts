@@ -6,7 +6,8 @@ import * as D from 'io-ts/Decoder';
 import { dateDecoder, decode2 } from '../utils/decode';
 import { isNotNull } from '../utils/predicates';
 import { Forbidden, OperationSkipped, ServerError } from '../utils/errors';
-import { WSClient } from '../websocket-client';
+import { invalidConnectionIds, logSendResults, WSClient } from '../websocket-client';
+import { cleanupConnections } from './cleanup';
 
 const forumTable = new ForumTable(dynamodb);
 
@@ -38,12 +39,14 @@ export async function openThread(wsClient: WSClient, token: TokenData, payload: 
   ]);
   const lastEventsExceptFollow = last20Events.filter(event => event.eventType !== 'follow');
   // Send the last events to opener except 'follow' because s-he already received those
-  await wsClient.send(wsClient.connectionId, last20Events);
+  await wsClient.send(wsClient.connectionId, last20Events).then(r => logSendResults([ r ]));
 
   const isFirstOpening = statusBeforeOpening === 'none';
   const otherConnectionIds = followers.map(follower => follower.connectionId).filter(id => id !== wsClient.connectionId);
   // if thread is opened for the first time, send to other followers the last events except 'follow' because they already received those
-  await wsClient.sendAll(otherConnectionIds, isFirstOpening ? lastEventsExceptFollow : [ threadOpenedEvent ]);
+  const sendResults = await wsClient.sendAll(otherConnectionIds, isFirstOpening ? lastEventsExceptFollow : [ threadOpenedEvent ]);
+  logSendResults(sendResults);
+  await cleanupConnections(wsClient, participantId, itemId, invalidConnectionIds(sendResults));
 }
 
 const activityLogDecoder = pipe(

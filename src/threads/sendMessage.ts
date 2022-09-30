@@ -3,7 +3,8 @@ import { TokenData } from '../utils/parsers';
 import { ForumTable } from './table';
 import { decode2 } from '../utils/decode';
 import * as D from 'io-ts/Decoder';
-import { WSClient } from '../websocket-client';
+import { invalidConnectionIds, logSendResults, WSClient } from '../websocket-client';
+import { cleanupConnections } from './cleanup';
 
 const forumTable = new ForumTable(dynamodb);
 
@@ -17,5 +18,7 @@ export async function sendMessage(wsClient: WSClient, token: TokenData, payload:
     forumTable.addThreadEvent(participantId, itemId, { eventType: 'message', userId, content: message }),
   ]);
   const connectionIds = followers.map(follower => follower.connectionId);
-  await wsClient.sendAll(connectionIds, [ createdEvent ]);
+  const sendResults = await wsClient.sendAll(connectionIds, [ createdEvent ]);
+  logSendResults(sendResults);
+  await cleanupConnections(wsClient, participantId, itemId, invalidConnectionIds(sendResults));
 }

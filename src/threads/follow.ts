@@ -10,8 +10,10 @@ const minutes = 60 * seconds;
 const hours = 60 * minutes;
 /**
  * ttl is the TimeToLive value of the db entry expressed in seconds.
+ * It is contrained by the connection duration for WebSocket API on API Gateway, which is 2h.
+ * https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html
  */
-export const followTtl = 12 * hours;
+const followTtl = 2 * hours;
 
 export async function follow(wsClient: WSClient, token: TokenData): Promise<void> {
   const { participantId, itemId, userId } = token;
@@ -23,7 +25,7 @@ export async function follow(wsClient: WSClient, token: TokenData): Promise<void
   const followEvent = await forumTable.addThreadEvent(participantId, itemId, {
     eventType: 'follow',
     connectionId: wsClient.connectionId,
-    ttl: followTtl,
+    ttl: Date.now()/1000 + followTtl,
     userId,
   });
 

@@ -80,6 +80,11 @@ functions:
     events:
       - websocket:
           route: send-message
+  heartbeat:
+    handler: src/handlers/heartbeat.handler
+    events:
+      - websocket:
+          route: heartbeat
 plugins:
   - serverless-plugin-typescript
   - serverless-dynamodb-local

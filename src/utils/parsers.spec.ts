@@ -39,7 +39,7 @@ describe('parsers', () => {
     });
 
 
-    it('should return the payload following JSON.parse rules', () => {
+    it('should return the payload subscribing JSON.parse rules', () => {
       expect(parsers.getPayload({ body: 21 } as unknown as APIGatewayProxyEvent)).toBe(21);
       expect(parsers.getPayload({ body: '[]' } as APIGatewayProxyEvent)).toEqual([]);
       expect(parsers.getPayload({ body: '{"hello": "world"}' } as APIGatewayProxyEvent)).toEqual({ hello: 'world' });

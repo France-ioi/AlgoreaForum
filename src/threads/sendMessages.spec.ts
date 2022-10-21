@@ -42,8 +42,8 @@ describe('sendMessage handler', () => {
     await expect(callHandler(handler, { connectionId, tokenData, body: payload })).resolves.toEqual(serverError());
   });
 
-  it('should let aws errors bubble when it happens on "get followers" operation', async () => {
-    const stub = jest.spyOn(ForumTable.prototype, 'getFollowers');
+  it('should let aws errors bubble when it happens on "get subscribers" operation', async () => {
+    const stub = jest.spyOn(ForumTable.prototype, 'getSubscribers');
     stub.mockRejectedValue(new Error());
     await expect(callHandler(handler, { connectionId, tokenData, body: payload })).resolves.toEqual(serverError());
   });
@@ -51,8 +51,8 @@ describe('sendMessage handler', () => {
   describe('success cases', () => {
     const pk = ForumTable.getThreadId(tokenData.participantId, tokenData.itemId);
     const ttl = 10000;
-    const follower1: ThreadEvent = { pk, time: 1, eventType: 'follow', connectionId, ttl, userId: tokenData.userId };
-    const follower2: ThreadEvent = { pk, time: 2, eventType: 'follow', connectionId: 'connectionId', ttl, userId: 'userId2' };
+    const subscriber1: ThreadEvent = { pk, time: 1, eventType: 'subscribe', connectionId, ttl, userId: tokenData.userId };
+    const subscriber2: ThreadEvent = { pk, time: 2, eventType: 'subscribe', connectionId: 'connectionId', ttl, userId: 'userId2' };
     const expectedCreatedEvent: ThreadEvent = {
       pk,
       time: expect.any(Number),
@@ -62,7 +62,7 @@ describe('sendMessage handler', () => {
     };
 
     beforeEach(async () => {
-      await loadFixture([ follower1, follower2 ]);
+      await loadFixture([ subscriber1, subscriber2 ]);
     });
 
     it('should add thread event "message"', async () => {
@@ -71,9 +71,9 @@ describe('sendMessage handler', () => {
       expect(results.Items?.map(fromDBItem)).toContainEqual(expectedCreatedEvent);
     });
 
-    it('should send new thread event "message" to followers', async () => {
+    it('should send new thread event "message" to subscribers', async () => {
       await expect(callHandler(handler, { connectionId, tokenData, body: payload })).resolves.toEqual(ok());
-      expect(sendAllStub).toHaveBeenCalledWith([ follower1.connectionId, follower2.connectionId ], [ expectedCreatedEvent ]);
+      expect(sendAllStub).toHaveBeenCalledWith([ subscriber1.connectionId, subscriber2.connectionId ], [ expectedCreatedEvent ]);
     });
   });
 });

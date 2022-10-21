@@ -1,13 +1,13 @@
 import * as messages from './messages';
 import { callHandler } from '../testutils/lambda';
 import { mockTokenData } from '../testutils/mocks';
-import { handler } from './follow';
+import { handler } from './subscribe';
 import { ForumTable, ThreadEvent } from './table';
 import { badRequest, serverError, unauthorized } from '../utils/responses';
 import { deleteAll, getAll, loadFixture } from '../testutils/db';
 import { fromDBItem } from '../dynamodb';
 
-describe('follow', () => {
+describe('subscribe', () => {
   const connectionId = 'connectionId';
   const tokenData = mockTokenData(1);
   let sendStub = jest.spyOn(messages, 'send');
@@ -29,7 +29,7 @@ describe('follow', () => {
     await expect(callHandler(handler, { connectionId })).resolves.toEqual(unauthorized());
   });
 
-  it('should fail when adding follow event fails', async () => {
+  it('should fail when adding subscribe event fails', async () => {
     const stub = jest.spyOn(ForumTable.prototype, 'addThreadEvent');
     stub.mockRejectedValue(new Error());
     await expect(callHandler(handler, { connectionId, tokenData })).resolves.toEqual(serverError());
@@ -59,24 +59,24 @@ describe('follow', () => {
       await callHandler(handler, { connectionId, tokenData });
     });
 
-    it('should have added a thread event "follow"', async () => {
+    it('should have added a thread event "subscribe"', async () => {
       const result = await getAll();
       expect(result.Items?.map(fromDBItem)).toContainEqual({
         pk: expect.any(String),
         time: expect.any(Number),
-        eventType: 'follow',
+        eventType: 'subscribe',
         connectionId,
         userId: tokenData.userId,
         ttl: expect.any(Number),
       });
     });
 
-    it('should send last 20 events to new connection including new "follow" event', () => {
+    it('should send last 20 events to new connection including new "subscribe" event', () => {
       expect(sendStub).toHaveBeenLastCalledWith(connectionId, [
         expect.objectContaining({
           pk: expect.any(String),
           time: expect.any(Number),
-          eventType: 'follow', // the event we added by actually following the thread
+          eventType: 'subscribe', // the event we added by actually subscribing the thread
           userId: tokenData.userId,
           connectionId,
           ttl: expect.any(Number),
@@ -85,12 +85,12 @@ describe('follow', () => {
       ]);
     });
 
-    it('should send the new follow event to other followers', () => {
+    it('should send the new subscribe event to other subscribers', () => {
       expect(sendAllStub).toHaveBeenCalledWith(expect.anything(), [
         expect.objectContaining({
           pk: expect.any(String),
           time: expect.any(Number),
-          eventType: 'follow',
+          eventType: 'subscribe',
           userId: tokenData.userId,
           connectionId,
           ttl: expect.any(Number),

@@ -1,5 +1,5 @@
 import { WSClient } from '../websocket-client';
-import { rawUnfollow } from './unfollow';
+import { rawUnsubscribe } from './unsubscribe';
 
 export async function cleanupConnections(
   wsClient: WSClient,
@@ -7,6 +7,6 @@ export async function cleanupConnections(
   itemId: string,
   connectionIds: string[]
 ): Promise<void> {
-  return Promise.all(connectionIds.map(connectionId => rawUnfollow(wsClient, participantId, itemId, connectionId)))
+  return Promise.all(connectionIds.map(connectionId => rawUnsubscribe(wsClient, participantId, itemId, connectionId)))
     .then(() => undefined);
 }

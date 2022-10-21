@@ -61,16 +61,16 @@ functions:
     events:
       - websocket:
           route: close-thread
-  follow:
-    handler: src/handlers/follow.handler
+  subscribe:
+    handler: src/handlers/subscribe.handler
     events:
       - websocket:
-          route: follow
-  unfollow:
-    handler: src/handlers/unfollow.handler
+          route: subscribe
+  unsubscribe:
+    handler: src/handlers/unsubscribe.handler
     events:
       - websocket:
-          route: unfollow
+          route: unsubscribe
   thread-status:
     handler: src/threads/threadStatus.handler
     url:

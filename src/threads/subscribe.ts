@@ -13,27 +13,27 @@ const hours = 60 * minutes;
  * It is contrained by the connection duration for WebSocket API on API Gateway, which is 2h.
  * https://docs.aws.amazon.com/apigateway/latest/developerguide/limits.html
  */
-const followTtl = 2 * hours;
+const subscribeTtl = 2 * hours;
 
-export async function follow(wsClient: WSClient, token: TokenData): Promise<void> {
+export async function subscribe(wsClient: WSClient, token: TokenData): Promise<void> {
   const { participantId, itemId, userId } = token;
 
-  const [ followers, events ] = await Promise.all([
-    forumTable.getFollowers({ itemId, participantId }),
+  const [ subscribers, events ] = await Promise.all([
+    forumTable.getSubscribers({ itemId, participantId }),
     forumTable.getThreadEvents({ participantId, itemId, limit: 19, asc: false }),
   ]);
-  const followEvent = await forumTable.addThreadEvent(participantId, itemId, {
-    eventType: 'follow',
+  const subscribeEvent = await forumTable.addThreadEvent(participantId, itemId, {
+    eventType: 'subscribe',
     connectionId: wsClient.connectionId,
-    ttl: Date.now()/1000 + followTtl,
+    ttl: Date.now()/1000 + subscribeTtl,
     userId,
   });
 
   const sendResults = await Promise.all([
-    wsClient.send(wsClient.connectionId, [ followEvent, ...events ]),
+    wsClient.send(wsClient.connectionId, [ subscribeEvent, ...events ]),
     wsClient.sendAll(
-      followers.map(({ connectionId }) => connectionId),
-      [ followEvent ],
+      subscribers.map(({ connectionId }) => connectionId),
+      [ subscribeEvent ],
     ),
   ]).then(([ sendRes, sendAllRes ]) => [ sendRes, ...sendAllRes ]);
   logSendResults(sendResults);

@@ -33,18 +33,18 @@ export async function openThread(wsClient: WSClient, token: TokenData, payload: 
 
   if (!threadOpenedEvent) throw new ServerError('threadOpenedEvent should be defined');
 
-  const [ last20Events, followers ] = await Promise.all([
+  const [ last20Events, subscribers ] = await Promise.all([
     forumTable.getThreadEvents({ itemId, participantId, asc: false, limit: 20 }),
-    forumTable.getFollowers({ participantId, itemId }),
+    forumTable.getSubscribers({ participantId, itemId }),
   ]);
-  const lastEventsExceptFollow = last20Events.filter(event => event.eventType !== 'follow');
-  // Send the last events to opener except 'follow' because s-he already received those
+  const lastEventsExceptSubscribe = last20Events.filter(event => event.eventType !== 'subscribe');
+  // Send the last events to opener except 'subscribe' because s-he already received those
   await wsClient.send(wsClient.connectionId, last20Events).then(r => logSendResults([ r ]));
 
   const isFirstOpening = statusBeforeOpening === 'none';
-  const otherConnectionIds = followers.map(follower => follower.connectionId).filter(id => id !== wsClient.connectionId);
-  // if thread is opened for the first time, send to other followers the last events except 'follow' because they already received those
-  const sendResults = await wsClient.sendAll(otherConnectionIds, isFirstOpening ? lastEventsExceptFollow : [ threadOpenedEvent ]);
+  const otherConnectionIds = subscribers.map(subscriber => subscriber.connectionId).filter(id => id !== wsClient.connectionId);
+  // if thread is opened for the first time, send to other subscribers the last events except 'subscribe' because they already received them
+  const sendResults = await wsClient.sendAll(otherConnectionIds, isFirstOpening ? lastEventsExceptSubscribe : [ threadOpenedEvent ]);
   logSendResults(sendResults);
   await cleanupConnections(wsClient, participantId, itemId, invalidConnectionIds(sendResults));
 }

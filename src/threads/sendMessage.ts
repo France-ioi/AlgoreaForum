@@ -13,11 +13,11 @@ export async function sendMessage(wsClient: WSClient, token: TokenData, payload:
 
   const message = decode2(D.struct({ message: D.string }))(payload).message;
 
-  const [ followers, createdEvent ] = await Promise.all([
-    forumTable.getFollowers({ participantId, itemId }),
+  const [ subscribers, createdEvent ] = await Promise.all([
+    forumTable.getSubscribers({ participantId, itemId }),
     forumTable.addThreadEvent(participantId, itemId, { eventType: 'message', userId, content: message }),
   ]);
-  const connectionIds = followers.map(follower => follower.connectionId);
+  const connectionIds = subscribers.map(subscriber => subscriber.connectionId);
   const sendResults = await wsClient.sendAll(connectionIds, [ createdEvent ]);
   logSendResults(sendResults);
   await cleanupConnections(wsClient, participantId, itemId, invalidConnectionIds(sendResults));

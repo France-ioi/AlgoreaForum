@@ -13,8 +13,8 @@ export async function closeThread(wsClient: WSClient, token: TokenData): Promise
     eventType: 'thread_closed',
     byUserId: userId,
   });
-  const followers = await forumTable.getFollowers({ participantId, itemId });
-  const connectionIds = followers.map(follower => follower.connectionId);
+  const subscribers = await forumTable.getSubscribers({ participantId, itemId });
+  const connectionIds = subscribers.map(subscriber => subscriber.connectionId);
   const sendResults = await wsClient.sendAll(connectionIds, [ threadClosedEvent ]);
   logSendResults(sendResults);
   await cleanupConnections(wsClient, participantId, itemId, invalidConnectionIds(sendResults));

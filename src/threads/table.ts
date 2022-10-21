@@ -20,19 +20,19 @@ const threadClosedEventDecoder = D.struct({
   byUserId: D.string,
 });
 
-const followEventInputDecoder = D.struct({
-  eventType: D.literal('follow'),
+const subscribeEventInputDecoder = D.struct({
+  eventType: D.literal('subscribe'),
   userId: D.string,
   connectionId: D.string,
   ttl: D.number,
 });
-type FollowEventInput = D.TypeOf<typeof followEventInputDecoder>;
+type SubscribeEventInput = D.TypeOf<typeof subscribeEventInputDecoder>;
 
-const followEventDecoder = pipe(
-  followEventInputDecoder,
+const subscribeEventDecoder = pipe(
+  subscribeEventInputDecoder,
   D.intersect(baseEventDecoder),
 );
-export type FollowEvent = D.TypeOf<typeof followEventDecoder>;
+export type SubscribeEvent = D.TypeOf<typeof subscribeEventDecoder>;
 
 const attemptStartedEventDecoder = D.struct({
   eventType: D.literal('attempt_started'),
@@ -60,7 +60,7 @@ const messageEventDecoder = D.struct({
 const threadEventInput = D.union(
   threadOpenedEventDecoder,
   threadClosedEventDecoder,
-  followEventInputDecoder,
+  subscribeEventInputDecoder,
   attemptStartedEventDecoder,
   submissionEventDecoder,
   messageEventDecoder,
@@ -137,9 +137,9 @@ export class ForumTable {
     return events.map(decode(threadEventDecoder)).filter(isNotNull);
   }
 
-  async getFollowers({ filters, ...options }: ListOptions<Omit<FollowEventInput, 'eventType'>>): Promise<FollowEvent[]> {
-    const events = await this.getThreadEvents({ ...options, filters: { eventType: 'follow', ...filters } });
-    return events.map(decode(followEventDecoder)).filter(isNotNull);
+  async getSubscribers({ filters, ...options }: ListOptions<Omit<SubscribeEventInput, 'eventType'>>): Promise<SubscribeEvent[]> {
+    const events = await this.getThreadEvents({ ...options, filters: { eventType: 'subscribe', ...filters } });
+    return events.map(decode(subscribeEventDecoder)).filter(isNotNull);
   }
 
   async addThreadEvent(

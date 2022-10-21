@@ -45,20 +45,20 @@ describe('close thread', () => {
     }]);
   });
 
-  it('should notify all followers', async () => {
-    const followEvent1: ThreadEvent = {
+  it('should notify all subscribers', async () => {
+    const subscribeEvent1: ThreadEvent = {
       pk,
       time: 1,
-      eventType: 'follow',
-      connectionId: 'followerConnectionId',
-      userId: 'followerUserId1',
+      eventType: 'subscribe',
+      connectionId: 'subscriberConnectionId',
+      userId: 'subscriberUserId1',
       ttl: 10000,
     };
-    const followEvent2: ThreadEvent = { ...followEvent1, time: 2, connectionId: 'connectionId2', userId: 'userId2' };
-    await loadFixture([ followEvent1, followEvent2 ]);
+    const subscribeEvent2: ThreadEvent = { ...subscribeEvent1, time: 2, connectionId: 'connectionId2', userId: 'userId2' };
+    await loadFixture([ subscribeEvent1, subscribeEvent2 ]);
     await callHandler(handler, { tokenData });
     expect(sendAllStub).toHaveBeenCalledTimes(1);
-    expect(sendAllStub).toHaveBeenLastCalledWith([ followEvent1.connectionId, followEvent2.connectionId ], [{
+    expect(sendAllStub).toHaveBeenLastCalledWith([ subscribeEvent1.connectionId, subscribeEvent2.connectionId ], [{
       pk: expect.any(String),
       time: expect.any(Number),
       eventType: 'thread_closed',

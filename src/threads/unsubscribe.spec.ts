@@ -1,13 +1,13 @@
 import * as messages from './messages';
 import { callHandler } from '../testutils/lambda';
 import { mockTokenData } from '../testutils/mocks';
-import { handler } from './unfollow';
+import { handler } from './unsubscribe';
 import { ForumTable, ThreadEvent } from './table';
 import { badRequest, ok, serverError, unauthorized } from '../utils/responses';
 import { deleteAll, getAll, loadFixture } from '../testutils/db';
 import { fromDBItem } from '../dynamodb';
 
-describe('follow', () => {
+describe('subscribe', () => {
   let sendAllStub = jest.spyOn(messages, 'sendAll');
   const connectionId = 'connectionId';
   const tokenData = mockTokenData(1);
@@ -50,34 +50,34 @@ describe('follow', () => {
     const userId2 = 'userId2';
     const connectionId2 = 'connectionId2';
     const ttl = 10000;
-    const followEventToDelete: ThreadEvent = { pk, time: 1, eventType: 'follow', connectionId, userId: tokenData.userId, ttl };
-    const followEventToKeep1: ThreadEvent = { pk, time: 2, eventType: 'follow', connectionId: connectionId1, userId: userId1, ttl };
-    const followEventToKeep2: ThreadEvent = { pk, time: 3, eventType: 'follow', connectionId: connectionId2, userId: userId2, ttl };
+    const subscribeEventToDelete: ThreadEvent = { pk, time: 1, eventType: 'subscribe', connectionId, userId: tokenData.userId, ttl };
+    const subscribeEventToKeep1: ThreadEvent = { pk, time: 2, eventType: 'subscribe', connectionId: connectionId1, userId: userId1, ttl };
+    const subscribeEventToKeep2: ThreadEvent = { pk, time: 3, eventType: 'subscribe', connectionId: connectionId2, userId: userId2, ttl };
     let sendAllStub = jest.spyOn(messages, 'sendAll');
 
     beforeEach(async () => {
       sendAllStub = jest.spyOn(messages, 'sendAll');
       sendAllStub.mockResolvedValue();
-      await loadFixture([ followEventToDelete, followEventToKeep1, followEventToKeep2 ]);
+      await loadFixture([ subscribeEventToDelete, subscribeEventToKeep1, subscribeEventToKeep2 ]);
     });
 
-    it('should remove thread event "follow" of user matching token data only', async () => {
+    it('should remove thread event "subscribe" of user matching token data only', async () => {
       await expect(callHandler(handler, { connectionId, tokenData })).resolves.toEqual(ok());
       const all = await getAll();
-      expect(all.Items?.map(fromDBItem)).toEqual([ followEventToKeep1, followEventToKeep2 ]);
+      expect(all.Items?.map(fromDBItem)).toEqual([ subscribeEventToKeep1, subscribeEventToKeep2 ]);
     });
 
-    it('should fail when removing follow event fails', async () => {
+    it('should fail when removing subscribe event fails', async () => {
       const removeThreadEventStub = jest.spyOn(ForumTable.prototype, 'removeThreadEvent');
       removeThreadEventStub.mockRejectedValue(new Error('...'));
       await expect(callHandler(handler, { connectionId, tokenData })).resolves.toEqual(serverError());
       expect(removeThreadEventStub).toHaveBeenCalledTimes(1);
     });
 
-    it('should notify other followers of the unfollow event', async () => {
+    it('should notify other subscribers of the unsubscribe event', async () => {
       await callHandler(handler, { connectionId, tokenData });
-      const unfollowEvent = { ...followEventToDelete, time: expect.any(Number), eventType: 'unfollow' };
-      expect(sendAllStub).toHaveBeenCalledWith([ connectionId1, connectionId2 ], [ unfollowEvent ]);
+      const unsubscribeEvent = { ...subscribeEventToDelete, time: expect.any(Number), eventType: 'unsubscribe' };
+      expect(sendAllStub).toHaveBeenCalledWith([ connectionId1, connectionId2 ], [ unsubscribeEvent ]);
     });
   });
 });

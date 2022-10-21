@@ -99,40 +99,40 @@ describe('threads', () => {
       });
     });
 
-    it('should notify all followers', async () => {
+    it('should notify all subscribers', async () => {
       const resultStarted = historyMocks.resultStarted({ item, participant });
       const resultValidated = historyMocks.resultValidated({ item, participant });
-      const followerUserId = 'followerUserId';
-      const followerConnectionId = 'followerConnectionId';
-      const followerFollowEvent: ThreadEvent = {
+      const subscriberUserId = 'subscriberUserId';
+      const subscriberConnectionId = 'subscriberConnectionId';
+      const subscriberSubscribeEvent: ThreadEvent = {
         pk,
         time: Date.now() - 100000, // a tiny bit in the past
-        eventType: 'follow',
-        userId: followerUserId,
-        connectionId: followerConnectionId,
+        eventType: 'subscribe',
+        userId: subscriberUserId,
+        connectionId: subscriberConnectionId,
         ttl: 1000,
       };
-      const selfFollowEvent: ThreadEvent = {
+      const selfSubscribeEvent: ThreadEvent = {
         pk,
-        time: Date.now() - 10000, // a tiny bit in the past but less than the follower-not-self
-        eventType: 'follow',
+        time: Date.now() - 10000, // a tiny bit in the past but less than the subscriber-not-self
+        eventType: 'subscribe',
         userId: tokenData.userId,
         connectionId,
         ttl: 1000,
       };
       const body = { history: [ resultStarted, resultValidated ] };
-      await loadFixture([ followerFollowEvent, selfFollowEvent ]);
+      await loadFixture([ subscriberSubscribeEvent, selfSubscribeEvent ]);
       await callHandler(handler, { connectionId, tokenData, body });
       expect(sendAllStub).toHaveBeenCalledTimes(1);
-      expect(sendAllStub).toHaveBeenLastCalledWith([ followerConnectionId ], [
+      expect(sendAllStub).toHaveBeenLastCalledWith([ subscriberConnectionId ], [
         expect.objectContaining({ eventType: 'thread_opened', byUserId: tokenData.userId }),
         expect.objectContaining({ eventType: 'submission' }),
         expect.objectContaining({ eventType: 'attempt_started' }),
       ]);
       expect(sendStub).toHaveBeenLastCalledWith(connectionId, [
         expect.objectContaining({ eventType: 'thread_opened', byUserId: tokenData.userId }),
-        expect.objectContaining({ eventType: 'follow', userId: tokenData.userId }),
-        expect.objectContaining({ eventType: 'follow', userId: followerUserId }),
+        expect.objectContaining({ eventType: 'subscribe', userId: tokenData.userId }),
+        expect.objectContaining({ eventType: 'subscribe', userId: subscriberUserId }),
         expect.objectContaining({ eventType: 'submission' }),
         expect.objectContaining({ eventType: 'attempt_started' }),
       ]);
@@ -141,8 +141,8 @@ describe('threads', () => {
       expect(result.Items?.map(fromDBItem)).toEqual([
         expect.objectContaining({ eventType: 'attempt_started' }),
         expect.objectContaining({ eventType: 'submission' }),
-        expect.objectContaining({ eventType: 'follow', userId: followerUserId }),
-        expect.objectContaining({ eventType: 'follow', userId: tokenData.userId }),
+        expect.objectContaining({ eventType: 'subscribe', userId: subscriberUserId }),
+        expect.objectContaining({ eventType: 'subscribe', userId: tokenData.userId }),
         expect.objectContaining({ eventType: 'thread_opened', byUserId: tokenData.userId }),
       ]);
     });

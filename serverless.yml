@@ -57,16 +57,6 @@ functions:
     events:
       - websocket:
           route: publish
-  open-thread:
-    handler: src/ws-handlers/openThread.handler
-    events:
-      - websocket:
-          route: open-thread
-  close-thread:
-    handler: src/ws-handlers/closeThread.handler
-    events:
-      - websocket:
-          route: close-thread
   subscribe:
     handler: src/ws-handlers/subscribe.handler
     events:
@@ -77,15 +67,6 @@ functions:
     events:
       - websocket:
           route: unsubscribe
-  thread-status:
-    handler: src/services/threadStatus.handler
-    url:
-      cors: true
-  send-message:
-    handler: src/ws-handlers/sendMessage.handler
-    events:
-      - websocket:
-          route: send-message
   heartbeat:
     handler: src/ws-handlers/heartbeat.handler
     events:

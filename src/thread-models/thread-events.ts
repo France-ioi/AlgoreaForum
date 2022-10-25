@@ -1,52 +1,11 @@
 import { AttributeValue, QueryCommandInput } from '@aws-sdk/client-dynamodb';
-import * as D from 'io-ts/Decoder';
-import { pipe } from 'fp-ts/function';
 import { fromDBItem, toAttributeValue, toDBItem } from '../dynamodb';
 import { decode } from '../utils/decode';
 import { isNotNull } from '../utils/predicates';
 import { ForumTable, tableKeyDecoder } from '../forum-table';
-
-const threadOpenedEventDecoder = D.struct({
-  eventType: D.literal('thread_opened'),
-  byUserId: D.string,
-});
-
-const threadClosedEventDecoder = D.struct({
-  eventType: D.literal('thread_closed'),
-  byUserId: D.string,
-});
-
-const attemptStartedEventDecoder = D.struct({
-  eventType: D.literal('attempt_started'),
-  attemptId: D.string,
-});
-
-const submissionEventDecoder = pipe(
-  D.struct({
-    eventType: D.literal('submission'),
-    attemptId: D.string,
-    answerId: D.string,
-  }),
-  D.intersect(D.partial({
-    score: D.number,
-    validated: D.boolean,
-  }))
-);
-
-const messageEventDecoder = D.struct({
-  eventType: D.literal('message'),
-  userId: D.string,
-  content: D.string,
-});
-
-const threadEventInput = D.union(
-  threadOpenedEventDecoder,
-  threadClosedEventDecoder,
-  attemptStartedEventDecoder,
-  submissionEventDecoder,
-  messageEventDecoder,
-);
-export type ThreadEventInput = D.TypeOf<typeof threadEventInput>;
+import * as D from 'io-ts/Decoder';
+import { pipe } from 'fp-ts/function';
+import { ThreadEventInput, threadEventInput } from '../ws-messages/inbound-messages';
 
 const threadEventDecoder = pipe(
   threadEventInput,

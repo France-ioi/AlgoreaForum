@@ -1,5 +1,5 @@
 import { TokenData } from '../utils/parsers';
-import { ActivityLog } from '../threads/openThread';
+import { ActivityLog } from '../services/openThread';
 
 export const mockTokenData = (suffix: number | string, rest?: Partial<TokenData>): TokenData => ({
   participantId: `openThreadParticipantId-${suffix}`,

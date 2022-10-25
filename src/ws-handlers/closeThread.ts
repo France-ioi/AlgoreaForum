@@ -1,5 +1,5 @@
 import type { APIGatewayProxyHandler } from 'aws-lambda';
-import { closeThread } from '../threads/closeThread';
+import { closeThread } from '../services/closeThread';
 import { logError } from '../utils/errors';
 import { parseWsMessage } from '../utils/parsers';
 import { ok } from '../utils/responses';

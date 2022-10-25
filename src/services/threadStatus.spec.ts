@@ -3,7 +3,8 @@ import { callHandler } from '../testutils/lambda';
 import { mockTokenData } from '../testutils/mocks';
 import { ok, serverError, unauthorized } from '../utils/responses';
 import { handler } from './threadStatus';
-import { ForumTable, ThreadEvent } from './table';
+import { ThreadEvent } from '../thread-models/thread-events';
+import { ForumTable } from '../forum-table';
 
 describe('threadStatus handler', () => {
   const tokenData = mockTokenData(1);
@@ -23,7 +24,7 @@ describe('threadStatus handler', () => {
   });
 
   describe('success cases', () => {
-    const pk = ForumTable.getThreadId(tokenData.participantId, tokenData.itemId);
+    // const pk = ForumTable.getThreadId(tokenData.participantId, tokenData.itemId);
 
     it('should return thread status none', async () => {
       await expect(callHandler(handler, { tokenData })).resolves.toEqual(ok(JSON.stringify({ status: 'none' })));

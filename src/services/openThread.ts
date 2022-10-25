@@ -1,4 +1,4 @@
-import { ThreadEventInput, Threads } from './table';
+import { Threads } from '../thread-models/thread-events';
 import { TokenData } from '../utils/parsers';
 import { dynamodb } from '../dynamodb';
 import { pipe } from 'fp-ts/function';
@@ -7,8 +7,9 @@ import { dateDecoder, decode2 } from '../utils/decode';
 import { isNotNull } from '../utils/predicates';
 import { Forbidden, OperationSkipped, ServerError } from '../utils/errors';
 import { invalidConnectionIds, logSendResults, WSClient } from '../websocket-client';
-import { cleanupConnections } from './cleanup';
-import { ThreadSubscriptions } from '../thread-subscriptions/thread-subscriptions';
+import { cleanupConnections } from '../cleanup';
+import { ThreadSubscriptions } from '../thread-models/thread-subscriptions';
+import { ThreadEventInput } from '../ws-messages/inbound-messages';
 
 const subscriptions = new ThreadSubscriptions(dynamodb);
 const threads = new Threads(dynamodb);

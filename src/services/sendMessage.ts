@@ -1,11 +1,11 @@
 import { dynamodb } from '../dynamodb';
 import { TokenData } from '../utils/parsers';
-import { Threads } from './table';
+import { Threads } from '../thread-models/thread-events';
 import { decode2 } from '../utils/decode';
 import * as D from 'io-ts/Decoder';
 import { invalidConnectionIds, logSendResults, WSClient } from '../websocket-client';
-import { cleanupConnections } from './cleanup';
-import { ThreadSubscriptions } from '../thread-subscriptions/thread-subscriptions';
+import { cleanupConnections } from '../cleanup';
+import { ThreadSubscriptions } from '../thread-models/thread-subscriptions';
 
 const subscriptions = new ThreadSubscriptions(dynamodb);
 const threads = new Threads(dynamodb);

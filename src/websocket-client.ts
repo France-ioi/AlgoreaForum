@@ -1,6 +1,6 @@
 import { ApiGatewayManagementApi } from '@aws-sdk/client-apigatewaymanagementapi';
 import { APIGatewayEventDefaultAuthorizerContext, APIGatewayEventRequestContextWithAuthorizer } from 'aws-lambda';
-import { ThreadEvent, ThreadStatus } from './threads/table';
+import { ThreadEvent, ThreadStatus } from './thread-models/thread-events';
 import { DecodingError, errorToString } from './utils/errors';
 
 interface ThreadStatusMessage {

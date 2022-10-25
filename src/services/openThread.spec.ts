@@ -5,13 +5,14 @@ import { callHandler } from '../testutils/lambda';
 import { historyMocks, mockTokenData } from '../testutils/mocks';
 import { badRequest, forbidden, ok, serverError, unauthorized } from '../utils/responses';
 import { activityLogToThreadData, handler } from './openThread';
-import { ForumTable, ThreadEvent } from './table';
+import { ThreadEvent } from '../thread-models/thread-events';
+import { ForumTable } from '../forum-table';
 
 describe('threads', () => {
   const connectionId = 'connectionId';
   const body = { history: [] };
   const tokenData = mockTokenData(1);
-  const pk = ForumTable.getThreadId(tokenData.participantId, tokenData.itemId);
+  // const pk = ForumTable.getThreadId(tokenData.participantId, tokenData.itemId);
   let sendAllStub = jest.spyOn(messages, 'sendAll');
   let sendStub = jest.spyOn(messages, 'send');
 

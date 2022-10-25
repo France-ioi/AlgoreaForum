@@ -73,7 +73,7 @@ functions:
       - websocket:
           route: unsubscribe
   thread-status:
-    handler: src/threads/threadStatus.handler
+    handler: src/services/threadStatus.handler
     url:
       cors: true
   send-message:

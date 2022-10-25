@@ -4,8 +4,9 @@ import { mockTokenData } from '../testutils/mocks';
 import { badRequest, ok, serverError, unauthorized } from '../utils/responses';
 import { handler } from './sendMessage';
 import * as messages from './messages';
-import { ForumTable, ThreadEvent } from './table';
+import { ThreadEvent } from '../thread-models/thread-events';
 import { fromDBItem } from '../dynamodb';
+import { ForumTable } from '../forum-table';
 
 describe('sendMessage handler', () => {
   const connectionId = 'connectionId';
@@ -49,7 +50,7 @@ describe('sendMessage handler', () => {
   });
 
   describe('success cases', () => {
-    const pk = ForumTable.getThreadId(tokenData.participantId, tokenData.itemId);
+    // const pk = ForumTable.getThreadId(tokenData.participantId, tokenData.itemId);
     const ttl = 10000;
     const subscriber1: ThreadEvent = { pk, time: 1, eventType: 'subscribe', connectionId, ttl, userId: tokenData.userId };
     const subscriber2: ThreadEvent = { pk, time: 2, eventType: 'subscribe', connectionId: 'connectionId', ttl, userId: 'userId2' };

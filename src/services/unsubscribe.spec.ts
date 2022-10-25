@@ -2,7 +2,7 @@ import * as messages from './messages';
 import { callHandler } from '../testutils/lambda';
 import { mockTokenData } from '../testutils/mocks';
 import { handler } from './unsubscribe';
-import { ForumTable, ThreadEvent } from '../threads/table';
+import { ForumTable, ThreadEvent } from '../thread-models/thread-events';
 import { badRequest, ok, serverError, unauthorized } from '../utils/responses';
 import { deleteAll, getAll, loadFixture } from '../testutils/db';
 import { fromDBItem } from '../dynamodb';

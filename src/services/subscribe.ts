@@ -1,8 +1,8 @@
 import { dynamodb } from '../dynamodb';
 import { TokenData } from '../utils/parsers';
 import { WSClient } from '../websocket-client';
-import { Threads } from '../threads/table';
-import { ThreadSubscriptions } from '../thread-subscriptions/thread-subscriptions';
+import { Threads } from '../thread-models/thread-events';
+import { ThreadSubscriptions } from '../thread-models/thread-subscriptions';
 
 const subscriptions = new ThreadSubscriptions(dynamodb);
 const threads = new Threads(dynamodb);

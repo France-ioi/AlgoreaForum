@@ -1,4 +1,4 @@
-import { rawUnsubscribe } from '../services/unsubscribe';
+import { rawUnsubscribe } from './services/unsubscribe';
 
 export async function cleanupConnections(
   participantId: string,

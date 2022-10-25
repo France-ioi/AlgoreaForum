@@ -4,12 +4,13 @@ import { callHandler } from '../testutils/lambda';
 import { mockTokenData } from '../testutils/mocks';
 import { ok, serverError, unauthorized } from '../utils/responses';
 import { handler } from './closeThread';
-import { ForumTable, ThreadEvent } from './table';
+import { ThreadEvent } from '../thread-models/thread-events';
 import * as messages from './messages';
+import { ForumTable } from '../forum-table';
 
 describe('close thread', () => {
   const tokenData = mockTokenData(1);
-  const pk = ForumTable.getThreadId(tokenData.participantId, tokenData.itemId);
+  // const pk = ForumTable.getThreadId(tokenData.participantId, tokenData.itemId);
   let sendAllStub = jest.spyOn(messages, 'sendAll');
 
   beforeEach(async () => {

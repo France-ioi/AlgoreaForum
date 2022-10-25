@@ -2,7 +2,7 @@ import type { APIGatewayProxyHandler } from 'aws-lambda';
 import { dynamodb } from '../dynamodb';
 import { ok, serverError, unauthorized } from '../utils/responses';
 import { extractTokenData } from '../utils/parsers';
-import { Threads } from './table';
+import { Threads } from '../thread-models/thread-events';
 
 const threads = new Threads(dynamodb);
 

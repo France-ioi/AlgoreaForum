@@ -1,6 +1,6 @@
 import * as D from 'io-ts/Decoder';
 import { ForumTable, TableKey, tableKeyDecoder } from '../forum-table';
-import { Thread } from '../threads/thread';
+import { Thread } from './thread';
 import { decodeOrNull } from '../utils/decode';
 import { isNotNull } from '../utils/predicates';
 

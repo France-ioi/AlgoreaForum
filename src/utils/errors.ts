@@ -1,3 +1,4 @@
+import { TransactionCanceledException } from '@aws-sdk/client-dynamodb';
 
 export function logError(err: unknown): void {
   // eslint-disable-next-line no-console
@@ -7,6 +8,9 @@ export function logError(err: unknown): void {
 }
 
 export function errorToString(err: unknown): string {
+  if (err instanceof TransactionCanceledException) {
+    return `${err.name}: ${err.message} - CancellationReasons: ${JSON.stringify(err.CancellationReasons)}`;
+  }
   if (err instanceof Error || err instanceof Forbidden || err instanceof ServerError ||
     err instanceof DecodingError || err instanceof OperationSkipped) {
     return `${err.name}: ${err.message}`;

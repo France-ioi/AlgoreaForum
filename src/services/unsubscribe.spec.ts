@@ -2,7 +2,7 @@ import * as messages from './messages';
 import { callHandler } from '../testutils/lambda';
 import { mockTokenData } from '../testutils/mocks';
 import { handler } from './unsubscribe';
-import { ForumTable, ThreadEvent } from './table';
+import { ForumTable, ThreadEvent } from '../threads/table';
 import { badRequest, ok, serverError, unauthorized } from '../utils/responses';
 import { deleteAll, getAll, loadFixture } from '../testutils/db';
 import { fromDBItem } from '../dynamodb';
@@ -11,7 +11,7 @@ describe('subscribe', () => {
   let sendAllStub = jest.spyOn(messages, 'sendAll');
   const connectionId = 'connectionId';
   const tokenData = mockTokenData(1);
-  const pk = ForumTable.getThreadId(tokenData.participantId, tokenData.itemId);
+  // const pk = ForumTable.getThreadId(tokenData.participantId, tokenData.itemId);
 
   beforeEach(async () => {
     jest.restoreAllMocks();

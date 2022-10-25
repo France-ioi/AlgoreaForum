@@ -23,6 +23,9 @@ export const decode = <T>(decoder: D.Decoder<unknown, T>) => (input: unknown): T
   ),
 );
 
+// Return a decoder function which return `null` for undecodable inputs.
+export const decodeOrNull = decode;
+
 /**
  * Decoder for Date type
  */

@@ -87,6 +87,12 @@ module.exports = {
         '@typescript-eslint/no-unsafe-member-access': 'off',
       }
     },
+    {
+      files: ['*/services/*.ts'],
+      rules: {
+        'no-console': 'off',
+      }
+    }
   ],
 };
 

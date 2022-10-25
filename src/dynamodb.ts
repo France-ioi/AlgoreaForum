@@ -50,4 +50,4 @@ export const fromDBItem = (item: Record<string, AttributeValue>): Record<string,
   const entries = Object.entries(item).map(([ key, attr ]): [ string, unknown ] => [ key, fromAttributeValue(attr) ]);
   return Object.fromEntries(entries);
 };
-
+export const toDBParameters = (value: unknown[]): AttributeValue[] => value.map(v => toAttributeValue(v));

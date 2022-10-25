@@ -1,8 +1,8 @@
 import * as messages from './messages';
 import { callHandler } from '../testutils/lambda';
 import { mockTokenData } from '../testutils/mocks';
-import { handler } from './subscribe';
-import { ForumTable, ThreadEvent } from './table';
+import { handler } from '../services/subscribe';
+import { ThreadEvent } from './table';
 import { badRequest, serverError, unauthorized } from '../utils/responses';
 import { deleteAll, getAll, loadFixture } from '../testutils/db';
 import { fromDBItem } from '../dynamodb';
@@ -44,7 +44,7 @@ describe('subscribe', () => {
   });
 
   describe('with valid data', () => {
-    const pk = ForumTable.getThreadId(tokenData.participantId, tokenData.itemId);
+    // const pk = ForumTable.getThreadId(tokenData.participantId, tokenData.itemId);
     const last20Events = Array.from({ length: 20 }, (_, index): ThreadEvent => ({
       pk,
       time: (index + 1) * 10,

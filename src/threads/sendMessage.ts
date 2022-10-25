@@ -1,12 +1,14 @@
 import { dynamodb } from '../dynamodb';
 import { TokenData } from '../utils/parsers';
-import { ForumTable } from './table';
+import { Threads } from './table';
 import { decode2 } from '../utils/decode';
 import * as D from 'io-ts/Decoder';
 import { invalidConnectionIds, logSendResults, WSClient } from '../websocket-client';
 import { cleanupConnections } from './cleanup';
+import { ThreadSubscriptions } from '../thread-subscriptions/thread-subscriptions';
 
-const forumTable = new ForumTable(dynamodb);
+const subscriptions = new ThreadSubscriptions(dynamodb);
+const threads = new Threads(dynamodb);
 
 export async function sendMessage(wsClient: WSClient, token: TokenData, payload: unknown): Promise<void> {
   const { participantId, itemId, userId } = token;
@@ -14,11 +16,11 @@ export async function sendMessage(wsClient: WSClient, token: TokenData, payload:
   const message = decode2(D.struct({ message: D.string }))(payload).message;
 
   const [ subscribers, createdEvent ] = await Promise.all([
-    forumTable.getSubscribers({ participantId, itemId }),
-    forumTable.addThreadEvent(participantId, itemId, { eventType: 'message', userId, content: message }),
+    subscriptions.getSubscribers({ participantId, itemId }),
+    threads.addThreadEvent(participantId, itemId, { eventType: 'message', userId, content: message }),
   ]);
   const connectionIds = subscribers.map(subscriber => subscriber.connectionId);
   const sendResults = await wsClient.sendAll(connectionIds, [ createdEvent ]);
   logSendResults(sendResults);
-  await cleanupConnections(wsClient, participantId, itemId, invalidConnectionIds(sendResults));
+  await cleanupConnections(participantId, itemId, invalidConnectionIds(sendResults));
 }

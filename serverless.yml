@@ -37,6 +37,7 @@ provider:
             - "dynamodb:UpdateItem"
             - "dynamodb:BatchWriteItem"
             - "dynamodb:DeleteItem"
+            - "dynamodb:PartiQL*"
           Resource:
             - Fn::GetAtt: [ForumTable, Arn]
 

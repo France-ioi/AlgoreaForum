@@ -1,9 +1,8 @@
 import { ApiGatewayManagementApi } from '@aws-sdk/client-apigatewaymanagementapi';
 import { APIGatewayEventDefaultAuthorizerContext, APIGatewayEventRequestContextWithAuthorizer } from 'aws-lambda';
-import { SubscribeEvent, ThreadEvent, ThreadStatus } from './threads/table';
+import { ThreadEvent, ThreadStatus } from './threads/table';
 import { DecodingError, errorToString } from './utils/errors';
 
-type UnsubscribeEvent = Omit<SubscribeEvent, 'eventType'> & { eventType: 'unsubscribe' };
 interface ThreadStatusMessage {
   status: ThreadStatus,
 }
@@ -15,7 +14,7 @@ export interface SendResult {
   error?: unknown,
 }
 
-type Message = ThreadEvent | UnsubscribeEvent | ThreadStatusMessage;
+type Message = ThreadEvent | ThreadStatusMessage;
 
 export function invalidConnectionIds(results: SendResult[]): string[] {
   return results

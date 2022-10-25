@@ -1,14 +1,10 @@
-import { AttributeValue, DynamoDB, QueryCommandInput } from '@aws-sdk/client-dynamodb';
+import { AttributeValue, QueryCommandInput } from '@aws-sdk/client-dynamodb';
 import * as D from 'io-ts/Decoder';
 import { pipe } from 'fp-ts/function';
 import { fromDBItem, toAttributeValue, toDBItem } from '../dynamodb';
 import { decode } from '../utils/decode';
 import { isNotNull } from '../utils/predicates';
-
-const baseEventDecoder = D.struct({
-  pk: D.string,
-  time: D.number,
-});
+import { ForumTable, tableKeyDecoder } from '../forum-table';
 
 const threadOpenedEventDecoder = D.struct({
   eventType: D.literal('thread_opened'),
@@ -19,20 +15,6 @@ const threadClosedEventDecoder = D.struct({
   eventType: D.literal('thread_closed'),
   byUserId: D.string,
 });
-
-const subscribeEventInputDecoder = D.struct({
-  eventType: D.literal('subscribe'),
-  userId: D.string,
-  connectionId: D.string,
-  ttl: D.number,
-});
-type SubscribeEventInput = D.TypeOf<typeof subscribeEventInputDecoder>;
-
-const subscribeEventDecoder = pipe(
-  subscribeEventInputDecoder,
-  D.intersect(baseEventDecoder),
-);
-export type SubscribeEvent = D.TypeOf<typeof subscribeEventDecoder>;
 
 const attemptStartedEventDecoder = D.struct({
   eventType: D.literal('attempt_started'),
@@ -60,7 +42,6 @@ const messageEventDecoder = D.struct({
 const threadEventInput = D.union(
   threadOpenedEventDecoder,
   threadClosedEventDecoder,
-  subscribeEventInputDecoder,
   attemptStartedEventDecoder,
   submissionEventDecoder,
   messageEventDecoder,
@@ -69,7 +50,7 @@ export type ThreadEventInput = D.TypeOf<typeof threadEventInput>;
 
 const threadEventDecoder = pipe(
   threadEventInput,
-  D.intersect(baseEventDecoder),
+  D.intersect(tableKeyDecoder),
 );
 export type ThreadEvent = D.TypeOf<typeof threadEventDecoder>;
 
@@ -85,14 +66,11 @@ export type ThreadStatus = 'none' | 'closed' | 'opened';
 
 // AWS uses PascalCase for everything, so we need to disable temporarily the casing lint rules
 /* eslint-disable @typescript-eslint/naming-convention */
-export class ForumTable {
-  private tableName = 'forumTable';
+export class Threads extends ForumTable {
 
-  static getThreadId(participantId: string, itemId: string): string {
+  private getThreadId(participantId: string, itemId: string): string {
     return `THREAD#${participantId}#${itemId}`;
   }
-
-  constructor(private db: DynamoDB) {}
 
   /**
    * Retrieves all the thread event items for a couple participantId+itemId in ascending order.
@@ -110,7 +88,7 @@ export class ForumTable {
       valueAttributeName: string,
       value: AttributeValue,
     }
-    const threadId = ForumTable.getThreadId(participantId, itemId);
+    const threadId = this.getThreadId(participantId, itemId);
     const threadFilters: ThreadFilter[] = Object.entries(filters).map(([ attributeName, value ]) => ({
       attributeName,
       valueAttributeName: `:${attributeName}`,
@@ -137,11 +115,6 @@ export class ForumTable {
     return events.map(decode(threadEventDecoder)).filter(isNotNull);
   }
 
-  async getSubscribers({ filters, ...options }: ListOptions<Omit<SubscribeEventInput, 'eventType'>>): Promise<SubscribeEvent[]> {
-    const events = await this.getThreadEvents({ ...options, filters: { eventType: 'subscribe', ...filters } });
-    return events.map(decode(subscribeEventDecoder)).filter(isNotNull);
-  }
-
   async addThreadEvent(
     participantId: string,
     itemId: string,
@@ -149,7 +122,7 @@ export class ForumTable {
   ): Promise<ThreadEvent> {
     const createdThreadEvent: ThreadEvent = {
       ...threadEvent,
-      pk: ForumTable.getThreadId(participantId, itemId),
+      pk: this.getThreadId(participantId, itemId),
       time: Date.now(),
     };
     await this.db.putItem({
@@ -166,7 +139,7 @@ export class ForumTable {
     const now = Date.now();
     const createdEvents: ThreadEvent[] = input.map(({ participantId, itemId, time, ...threadEventInput }) => ({
       ...threadEventInput,
-      pk: ForumTable.getThreadId(participantId, itemId),
+      pk: this.getThreadId(participantId, itemId),
       time: time ?? now,
     }));
 
@@ -193,7 +166,7 @@ export class ForumTable {
   }
 
   async getThreadStatus(participantId: string, itemId: string): Promise<ThreadStatus> {
-    const pk = ForumTable.getThreadId(participantId, itemId);
+    const pk = this.getThreadId(participantId, itemId);
     const result = await this.db.query({
       TableName: this.tableName,
       KeyConditionExpression: 'pk = :tid',

@@ -1,4 +1,4 @@
-import { ForumTable, ThreadEventInput } from './table';
+import { ThreadEventInput, Threads } from './table';
 import { TokenData } from '../utils/parsers';
 import { dynamodb } from '../dynamodb';
 import { pipe } from 'fp-ts/function';
@@ -8,8 +8,10 @@ import { isNotNull } from '../utils/predicates';
 import { Forbidden, OperationSkipped, ServerError } from '../utils/errors';
 import { invalidConnectionIds, logSendResults, WSClient } from '../websocket-client';
 import { cleanupConnections } from './cleanup';
+import { ThreadSubscriptions } from '../thread-subscriptions/thread-subscriptions';
 
-const forumTable = new ForumTable(dynamodb);
+const subscriptions = new ThreadSubscriptions(dynamodb);
+const threads = new Threads(dynamodb);
 
 export async function openThread(wsClient: WSClient, token: TokenData, payload: unknown): Promise<void> {
   const { participantId, itemId, userId, isMine, canWatchParticipant } = token;
@@ -18,10 +20,10 @@ export async function openThread(wsClient: WSClient, token: TokenData, payload: 
   }
   const content = decode2(D.struct({ history: D.array(activityLogDecoder) }))(payload);
 
-  const statusBeforeOpening = await forumTable.getThreadStatus(participantId, itemId);
+  const statusBeforeOpening = await threads.getThreadStatus(participantId, itemId);
   if (statusBeforeOpening === 'opened') throw new OperationSkipped(`Thread (${participantId}, ${itemId}) is already opened`);
 
-  const [ threadOpenedEvent ] = await forumTable.addThreadEvents([
+  const [ threadOpenedEvent ] = await threads.addThreadEvents([
     { participantId, itemId, eventType: 'thread_opened', byUserId: userId },
     ...content.history.map(activityLogToThreadData).filter(isNotNull).map(event => ({
       participantId: event.participantId,
@@ -34,8 +36,8 @@ export async function openThread(wsClient: WSClient, token: TokenData, payload: 
   if (!threadOpenedEvent) throw new ServerError('threadOpenedEvent should be defined');
 
   const [ last20Events, subscribers ] = await Promise.all([
-    forumTable.getThreadEvents({ itemId, participantId, asc: false, limit: 20 }),
-    forumTable.getSubscribers({ participantId, itemId }),
+    threads.getThreadEvents({ itemId, participantId, asc: false, limit: 20 }),
+    subscriptions.getSubscribers({ participantId, itemId }),
   ]);
   const lastEventsExceptSubscribe = last20Events.filter(event => event.eventType !== 'subscribe');
   // Send the last events to opener except 'subscribe' because s-he already received those
@@ -46,7 +48,7 @@ export async function openThread(wsClient: WSClient, token: TokenData, payload: 
   // if thread is opened for the first time, send to other subscribers the last events except 'subscribe' because they already received them
   const sendResults = await wsClient.sendAll(otherConnectionIds, isFirstOpening ? lastEventsExceptSubscribe : [ threadOpenedEvent ]);
   logSendResults(sendResults);
-  await cleanupConnections(wsClient, participantId, itemId, invalidConnectionIds(sendResults));
+  await cleanupConnections(participantId, itemId, invalidConnectionIds(sendResults));
 }
 
 const activityLogDecoder = pipe(

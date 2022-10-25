@@ -11,11 +11,19 @@ export function errorToString(err: unknown): string {
   if (err instanceof TransactionCanceledException) {
     return `${err.name}: ${err.message} - CancellationReasons: ${JSON.stringify(err.CancellationReasons)}`;
   }
+  if (err instanceof DBError) {
+    return `${err.name}: ${err.message} - Statement(s): ${err.details}`;
+  }
   if (err instanceof Error || err instanceof Forbidden || err instanceof ServerError ||
     err instanceof DecodingError || err instanceof OperationSkipped) {
     return `${err.name}: ${err.message}`;
   }
   return `An unexpected error occured (${JSON.stringify(err)})`;
+}
+
+export class DBError implements Error {
+  name = 'DBError';
+  constructor(public message: string /* error description */, public details: string /* statement details */) {}
 }
 
 export class DecodingError implements Error {

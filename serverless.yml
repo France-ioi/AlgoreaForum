@@ -43,32 +43,32 @@ provider:
 
 functions:
   connection:
-    handler: src/handlers/connection.handler
+    handler: src/ws-handlers/connection.handler
     events:
       - websocket:
           route: $connect
   disconnection:
-    handler: src/handlers/disconnection.handler
+    handler: src/ws-handlers/disconnection.handler
     events:
       - websocket:
           route: $disconnect
   open-thread:
-    handler: src/handlers/openThread.handler
+    handler: src/ws-handlers/openThread.handler
     events:
       - websocket:
           route: open-thread
   close-thread:
-    handler: src/handlers/closeThread.handler
+    handler: src/ws-handlers/closeThread.handler
     events:
       - websocket:
           route: close-thread
   subscribe:
-    handler: src/handlers/subscribe.handler
+    handler: src/ws-handlers/subscribe.handler
     events:
       - websocket:
           route: subscribe
   unsubscribe:
-    handler: src/handlers/unsubscribe.handler
+    handler: src/ws-handlers/unsubscribe.handler
     events:
       - websocket:
           route: unsubscribe
@@ -77,12 +77,12 @@ functions:
     url:
       cors: true
   send-message:
-    handler: src/handlers/sendMessage.handler
+    handler: src/ws-handlers/sendMessage.handler
     events:
       - websocket:
           route: send-message
   heartbeat:
-    handler: src/handlers/heartbeat.handler
+    handler: src/ws-handlers/heartbeat.handler
     events:
       - websocket:
           route: heartbeat

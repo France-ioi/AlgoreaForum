@@ -20,7 +20,7 @@ export class ForumTable {
 
   constructor(protected db: DynamoDB) {}
 
-  async dbWrite(statements: DBStatement[]|DBStatement): Promise<void> {
+  protected async sqlWrite(statements: DBStatement[]|DBStatement): Promise<void> {
     try {
       /* eslint-disable @typescript-eslint/naming-convention */
       if (Array.isArray(statements)) {
@@ -38,7 +38,7 @@ export class ForumTable {
     }
   }
 
-  async dbRead(statement: DBStatement): Promise<Record<string, unknown>[]> {
+  protected async sqlRead(statement: DBStatement): Promise<Record<string, unknown>[]> {
     let output: ExecuteStatementCommandOutput;
     try {
       /* eslint-disable @typescript-eslint/naming-convention */

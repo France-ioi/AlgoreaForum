@@ -24,7 +24,7 @@ type Subscription = D.TypeOf<typeof subscriptionDecoder>;
 export class ThreadSubscriptions extends ForumTable {
 
   async getSubscribers(thread: Thread): Promise<Subscription[]> {
-    const results = await this.dbRead({
+    const results = await this.sqlRead({
       query: `SELECT connectionId FROM ${ this.tableName } WHERE pk = ?;`,
       params: [ this.pk(thread) ],
     });
@@ -32,7 +32,7 @@ export class ThreadSubscriptions extends ForumTable {
   }
 
   async getSubscribersWithConnection(thread: Thread, connectionId: string): Promise<TableKey[]> {
-    const results = await this.dbRead({
+    const results = await this.sqlRead({
       query: `SELECT pk, "time" FROM ${ this.tableName } WHERE pk = ? and connectionId = ?;`,
       params: [ this.pk(thread), connectionId ],
     });
@@ -40,14 +40,14 @@ export class ThreadSubscriptions extends ForumTable {
   }
 
   async subscribe(thread: Thread, connectionId: ConnectionId, userId: string): Promise<void> {
-    await this.dbWrite({
+    await this.sqlWrite({
       query: `INSERT INTO "${ this.tableName }" VALUE { 'pk': ?, 'time': ?, 'ttl': ?, 'userId': ?, 'connectionId': ? }`,
       params: [ this.pk(thread), Date.now(), ttl(), userId, connectionId ]
     });
   }
 
   async unsubscribe(keys: TableKey[]): Promise<void> {
-    await this.dbWrite(keys.map(k => ({
+    await this.sqlWrite(keys.map(k => ({
       query: `DELETE FROM ${ this.tableName } WHERE pk = ? AND "time" = ?`,
       params: [ k.pk, k.time ],
     })));

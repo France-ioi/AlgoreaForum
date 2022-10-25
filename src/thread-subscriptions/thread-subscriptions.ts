@@ -33,7 +33,7 @@ export class ThreadSubscriptions extends ForumTable {
 
   async getSubscribersWithConnection(thread: Thread, connectionId: string): Promise<TableKey[]> {
     const results = await this.dbRead({
-      query: `SELECT pk, time FROM ${ this.tableName } WHERE pk = ? and connectionId = ?;`,
+      query: `SELECT pk, "time" FROM ${ this.tableName } WHERE pk = ? and connectionId = ?;`,
       params: [ this.pk(thread), connectionId ],
     });
     return results.map(decodeOrNull(tableKeyDecoder)).filter(isNotNull);
@@ -48,7 +48,7 @@ export class ThreadSubscriptions extends ForumTable {
 
   async unsubscribe(keys: TableKey[]): Promise<void> {
     await this.dbWrite(keys.map(k => ({
-      query: `DELETE FROM ${ this.tableName } WHERE pk = ? AND time = ?`,
+      query: `DELETE FROM ${ this.tableName } WHERE pk = ? AND "time" = ?`,
       params: [ k.pk, k.time ],
     })));
   }

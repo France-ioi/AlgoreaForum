@@ -14,7 +14,7 @@ export interface SendResult {
   error?: unknown,
 }
 
-type Message = ThreadEvent | ThreadStatusMessage;
+type Message = ThreadEvent | ThreadStatusMessage | unknown;
 
 export function invalidConnectionIds(results: SendResult[]): string[] {
   return results

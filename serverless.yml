@@ -52,6 +52,11 @@ functions:
     events:
       - websocket:
           route: $disconnect
+  publish:
+    handler: src/ws-handlers/publish.handler
+    events:
+      - websocket:
+          route: publish
   open-thread:
     handler: src/ws-handlers/openThread.handler
     events:

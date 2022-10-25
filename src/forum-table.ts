@@ -1,6 +1,6 @@
 import * as D from 'io-ts/Decoder';
 import { DynamoDB, ExecuteStatementCommandOutput } from '@aws-sdk/client-dynamodb';
-import { fromDBItem, toDBParameters } from './dynamodb';
+import { fromDBItem, toDBItem, toDBParameters } from './dynamodb';
 import { DBError } from './utils/errors';
 
 export const tableKeyDecoder = D.struct({
@@ -50,6 +50,20 @@ export class ForumTable {
     }
     if (!output.Items) throw new DBError('(unexpected) no items in output', JSON.stringify(statement));
     return output.Items.map(fromDBItem);
+  }
+
+  protected async batchUpdate<T extends TableKey>(items: T[]): Promise<void> {
+    await this.db.batchWriteItem({
+      /* eslint-disable @typescript-eslint/naming-convention */
+      RequestItems: {
+        [this.tableName]: items.map(i => ({
+          PutRequest: {
+            Item: toDBItem(i),
+          },
+        })),
+      }
+      /* eslint-enable @typescript-eslint/naming-convention */
+    });
   }
 
 }

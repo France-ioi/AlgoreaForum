@@ -40,14 +40,12 @@ export async function openThread(wsClient: WSClient, token: TokenData, payload: 
     threads.getThreadEvents({ itemId, participantId, asc: false, limit: 20 }),
     subscriptions.getSubscribers({ participantId, itemId }),
   ]);
-  const lastEventsExceptSubscribe = last20Events.filter(event => event.eventType !== 'subscribe');
-  // Send the last events to opener except 'subscribe' because s-he already received those
   await wsClient.send(wsClient.connectionId, last20Events).then(r => logSendResults([ r ]));
 
   const isFirstOpening = statusBeforeOpening === 'none';
   const otherConnectionIds = subscribers.map(subscriber => subscriber.connectionId).filter(id => id !== wsClient.connectionId);
   // if thread is opened for the first time, send to other subscribers the last events except 'subscribe' because they already received them
-  const sendResults = await wsClient.sendAll(otherConnectionIds, isFirstOpening ? lastEventsExceptSubscribe : [ threadOpenedEvent ]);
+  const sendResults = await wsClient.sendAll(otherConnectionIds, isFirstOpening ? last20Events : [ threadOpenedEvent ]);
   logSendResults(sendResults);
   await cleanupConnections(participantId, itemId, invalidConnectionIds(sendResults));
 }

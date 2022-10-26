@@ -31,6 +31,8 @@ export const toAttributeValue = (value: unknown): AttributeValue => {
   if (typeof value === 'number') return { N: value.toString() };
   if (typeof value === 'boolean') return { BOOL: value };
   if (value === null) return { NULL: true };
+  if (typeof value === 'object') return { M: Object.fromEntries(Object.entries(value).map(([ k, v ]) => [ k, toAttributeValue(v) ])) };
+  if (value === null) return { NULL: true };
   throw new Error(`unhandled value ${String(value)}`);
 };
 export const fromAttributeValue = (attr: AttributeValue): unknown => {
@@ -38,6 +40,7 @@ export const fromAttributeValue = (attr: AttributeValue): unknown => {
   if (attr.N) return Number(attr.N);
   if (typeof attr.BOOL === 'boolean') return attr.BOOL;
   if (attr.NULL) return null;
+  if (attr.M) return Object.fromEntries(Object.entries(attr.M).map(([ k, v ]) => [ k, fromAttributeValue(v) ]));
   throw new Error(`unhandled value ${JSON.stringify(attr, null, 2)}`);
 };
 export const toDBItem = <T extends Record<string, any>>(value: T): Record<string, AttributeValue> => {

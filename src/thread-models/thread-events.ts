@@ -33,8 +33,9 @@ export class ThreadEvents extends ForumTable {
 
   async getAll(thread: Thread): Promise<ThreadEvent[]> {
     const results = await this.sqlRead({
-      query: `SELECT "time", label, data FROM ${this.tableName} WHERE pk = ? ORDER BY "time" DESC LIMIT 20`,
-      params: [ this.pk(thread) ]
+      query: `SELECT "time", label, data FROM ${this.tableName} WHERE pk = ? ORDER BY "time" DESC`,
+      params: [ this.pk(thread) ],
+      limit: 20,
     });
     return results
       .map(decodeOrNull(dbThreadEventDecoder))

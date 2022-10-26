@@ -13,6 +13,7 @@ export type TableKey = D.TypeOf<typeof tableKeyDecoder>;
 export interface DBStatement {
   query: string,
   params: unknown[],
+  limit?: number,
 }
 
 export class ForumTable {
@@ -42,7 +43,11 @@ export class ForumTable {
     let output: ExecuteStatementCommandOutput;
     try {
       /* eslint-disable @typescript-eslint/naming-convention */
-      output = await this.db.executeStatement({ Statement: statement.query, Parameters: toDBParameters(statement.params) });
+      output = await this.db.executeStatement({
+        Statement: statement.query,
+        Parameters: toDBParameters(statement.params),
+        Limit: statement.limit
+      });
       /* eslint-enable @typescript-eslint/naming-convention */
     } catch (err) {
       if (err instanceof Error) throw new DBError(`[${err.name}] ${err.message}`, JSON.stringify(statement));

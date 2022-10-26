@@ -7,6 +7,7 @@ import { isNotNull } from '../utils/predicates';
 const dbThreadEventDecoder = D.struct({
   time: D.number,
   label: D.string,
+  createdBy: D.string,
   data: D.UnknownRecord,
 });
 
@@ -14,6 +15,7 @@ interface ThreadEvent {
   thread: Thread,
   time: number,
 
+  createdBy: string,
   label: string,
   data: unknown,
 }
@@ -33,7 +35,7 @@ export class ThreadEvents extends ForumTable {
 
   async getAll(thread: Thread): Promise<ThreadEvent[]> {
     const results = await this.sqlRead({
-      query: `SELECT "time", label, data FROM ${this.tableName} WHERE pk = ? ORDER BY "time" DESC`,
+      query: `SELECT createdBy, "time", label, data FROM ${this.tableName} WHERE pk = ? ORDER BY "time" DESC`,
       params: [ this.pk(thread) ],
       limit: 20,
     });

@@ -1,18 +1,18 @@
 import { dynamodb } from '../dynamodb';
 import { TokenData } from '../utils/parsers';
 import { WSClient } from '../websocket-client';
-import { Threads } from '../thread-models/thread-events';
 import { ThreadSubscriptions } from '../thread-models/thread-subscriptions';
+import { ThreadEvents } from '../thread-models/thread-events';
 
 const subscriptions = new ThreadSubscriptions(dynamodb);
-const threads = new Threads(dynamodb);
+const threadEvents = new ThreadEvents(dynamodb);
 
 export async function subscribe(wsClient: WSClient, token: TokenData): Promise<void> {
   const { participantId, itemId, userId } = token;
 
-  const [ events ] = await Promise.all([
-    threads.getThreadEvents({ participantId, itemId, limit: 19, asc: false }),
+  await Promise.all([
+    threadEvents.getAll({ participantId, itemId })
+      .then(events => wsClient.send(wsClient.connectionId, events)),
     subscriptions.subscribe({ participantId, itemId }, wsClient.connectionId, userId),
   ]);
-  await wsClient.send(wsClient.connectionId, events);
 }

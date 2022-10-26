@@ -8,7 +8,7 @@ import { Forbidden } from '../utils/errors';
 import { invalidConnectionIds, logSendResults, WSClient } from '../websocket-client';
 import { cleanupConnections } from '../cleanup';
 import { ThreadSubscriptions } from '../thread-models/thread-subscriptions';
-import { ThreadEvents } from '../thread-models/thread-events-next';
+import { ThreadEvents } from '../thread-models/thread-events';
 
 const subscriptions = new ThreadSubscriptions(dynamodb);
 const threadEvents = new ThreadEvents(dynamodb);

@@ -54,7 +54,7 @@ export class ThreadSubscriptions extends ForumTable {
   }
 
   private pk(thread: Thread): string {
-    return `THREADSUB#${thread.participantId}#${thread.itemId}`;
+    return `THREAD#${thread.participantId}#${thread.itemId}#SUB`;
   }
 
 }

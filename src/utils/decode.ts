@@ -3,7 +3,8 @@ import { pipe } from 'fp-ts/function';
 import { fold } from 'fp-ts/Either';
 import { DecodingError } from './errors';
 
-export function decode2<T>(decoder: D.Decoder<unknown, T>) {
+// Return a decoder function which throw a `DecodingError` if decoding fails
+export function decodeOrThrow<T>(decoder: D.Decoder<unknown, T>) {
   return (input: unknown): T => pipe(
     decoder.decode(input),
     fold(
@@ -15,18 +16,14 @@ export function decode2<T>(decoder: D.Decoder<unknown, T>) {
   );
 }
 
-export const decode = <T>(decoder: D.Decoder<unknown, T>) => (input: unknown): T | null => pipe(
+// Return a decoder function which return `null` for undecodable inputs.
+export const decodeOrNull = <T>(decoder: D.Decoder<unknown, T>) => (input: unknown): T | null => pipe(
   decoder.decode(input),
   fold(
     () => null,
     decoded => decoded,
   ),
 );
-
-// Return a decoder function which return `null` for undecodable inputs.
-export const decodeOrNull = decode;
-// Return a decoder function which throw a `DecodingError` if decoding fails
-export const decodeOrThrow = decode2;
 
 /**
  * Decoder for Date type

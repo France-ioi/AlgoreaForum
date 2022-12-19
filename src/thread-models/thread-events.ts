@@ -37,7 +37,7 @@ export class ThreadEvents extends ForumTable {
     const results = await this.sqlRead({
       query: `SELECT createdBy, "time", label, data FROM ${this.tableName} WHERE pk = ? ORDER BY "time" DESC`,
       params: [ this.pk(thread) ],
-      limit: 20,
+      limit: 500,
     });
     return results
       .map(decodeOrNull(dbThreadEventDecoder))

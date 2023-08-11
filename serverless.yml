@@ -1,5 +1,6 @@
 service: algoreaforum
 frameworkVersion: '3'
+useDotenv: true
 
 custom:
  dynamodb:
@@ -17,6 +18,7 @@ provider:
   name: aws
   environment:
     STAGE: ${opt:stage, 'dev'}
+    BACKEND_PUBLIC_KEY: ${env:BACKEND_PUBLIC_KEY}
   runtime: nodejs14.x
   deploymentMethod: direct
   region: eu-west-3

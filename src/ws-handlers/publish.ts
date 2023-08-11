@@ -10,7 +10,7 @@ import { ok } from '../utils/responses';
 export const handler: APIGatewayProxyHandler = async event => {
 
   try {
-    const { wsClient, token, payload } = parseWsMessage(event);
+    const { wsClient, token, payload } = await parseWsMessage(event);
     await publishEvents(wsClient, token, payload);
   } catch (err) {
     logError(err);

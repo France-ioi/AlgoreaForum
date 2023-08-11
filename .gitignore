@@ -9,3 +9,5 @@ jspm_packages
 # Local Netlify folder
 .netlify
 .build
+
+.env.*

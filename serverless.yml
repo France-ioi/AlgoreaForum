@@ -19,6 +19,7 @@ provider:
   environment:
     STAGE: ${opt:stage, 'dev'}
     BACKEND_PUBLIC_KEY: ${env:BACKEND_PUBLIC_KEY}
+    TABLE_NAME: ${env:TABLE_NAME}
   runtime: nodejs14.x
   deploymentMethod: direct
   region: eu-west-3
@@ -85,7 +86,7 @@ resources:
       Type: "AWS::DynamoDB::Table"
       Properties:
         BillingMode: PAY_PER_REQUEST
-        TableName: forumTable
+        TableName: ${env:TABLE_NAME}
         TimeToLiveSpecification:
           AttributeName: "ttl"
           Enabled: true

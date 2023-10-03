@@ -5,7 +5,7 @@ module.exports = {
   port: 8000,
   tables: [{
     BillingMode: 'PAY_PER_REQUEST',
-    TableName: 'forumTable',
+    TableName: 'algorea-forum-dev',
     TimeToLiveSpecification: {
       AttributeName: 'ttl',
       Enabled: true,

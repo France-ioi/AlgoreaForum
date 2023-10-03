@@ -17,9 +17,13 @@ export interface DBStatement {
 }
 
 export class ForumTable {
-  protected tableName = 'forumTable';
+  protected tableName: string;
 
-  constructor(protected db: DynamoDB) {}
+  constructor(protected db: DynamoDB) {
+    const tableName = process.env.TABLE_NAME;
+    if (tableName === undefined || !tableName.length) throw new Error('env variable "TABLE_NAME" not set!');
+    this.tableName = tableName;
+  }
 
   protected async sqlWrite(statements: DBStatement[]|DBStatement): Promise<void> {
     try {

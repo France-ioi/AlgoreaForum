@@ -3,9 +3,11 @@ import { AttributeValue, DynamoDB } from '@aws-sdk/client-dynamodb';
 
 const dynamoOptions = (): ConstructorParameters<typeof DynamoDB>[0] => {
   switch (process.env.STAGE) {
-    case 'dev':
-    case 'production':
-      return {};
+    case 'local':
+      return {
+        region: 'localhost',
+        endpoint: 'http://localhost:7000',
+      };
     case 'test':
       return {
         endpoint: 'http://localhost:8000',
@@ -16,11 +18,10 @@ const dynamoOptions = (): ConstructorParameters<typeof DynamoDB>[0] => {
           secretAccessKey: 'fakeSecretAccessKey'
         }
       };
+    case 'dev':
+    case 'production':
     default:
-      return {
-        region: 'localhost',
-        endpoint: 'http://localhost:7000',
-      };
+      return {};
   }
 };
 

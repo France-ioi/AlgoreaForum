@@ -11,7 +11,8 @@ const tokenDataDecoder = D.struct({
   itemId: D.string,
   userId: D.string,
   isMine: D.boolean,
-  canWatchParticipant: D.boolean,
+  canWatch: D.boolean,
+  canWrite: D.boolean
 });
 const payloadDecoder = D.struct({ token: tokenDataDecoder });
 
@@ -54,7 +55,8 @@ export async function parseWsMessage(event: APIGatewayProxyEvent): Promise<{ wsC
       itemId: jwsPayload.item_id,
       userId: jwsPayload.user_id,
       isMine: jwsPayload.is_mine,
-      canWatchParticipant: jwsPayload.can_watch,
+      canWatch: jwsPayload.can_watch,
+      canWrite: jwsPayload.can_write,
     }, payload };
   }
 }

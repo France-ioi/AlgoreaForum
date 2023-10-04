@@ -26,10 +26,10 @@ const inboundThreadEventDecoder = pipe(
 );
 
 export async function publishEvents(wsClient: WSClient, token: TokenData, payload: unknown): Promise<void> {
-  const { participantId, itemId, userId, isMine, canWatchParticipant } = token;
+  const { participantId, itemId, userId, canWrite } = token;
 
-  if (!isMine && !canWatchParticipant) {
-    throw new Forbidden(`This operation required isMine or canWatchParticipant, got ${JSON.stringify({ isMine, canWatchParticipant })} `);
+  if (!canWrite) {
+    throw new Forbidden(`This operation required canWrite, got ${JSON.stringify(token)} `);
   }
 
   // just decoce the raw structure of the payload

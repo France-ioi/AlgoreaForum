@@ -26,9 +26,12 @@ const inboundThreadEventDecoder = pipe(
 );
 
 export async function publishEvents(wsClient: WSClient, token: TokenData, payload: unknown): Promise<void> {
-  const { participantId, itemId, userId, canWrite } = token;
+  const { participantId, itemId, userId, canWrite, canWatch, isMine } = token;
 
-  if (!canWrite) {
+  if (!canWrite && !canWatch && !isMine) {
+    // FIXME: this is problematic as we allow "!canWrite" to write
+    // the reason is that we want to allow the user and observers to write the event log (activity started etc) in the log
+    // even if the thread is closed
     throw new Forbidden(`This operation required canWrite, got ${JSON.stringify(token)} `);
   }
 

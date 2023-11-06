@@ -18,5 +18,5 @@ export async function rawUnsubscribe(participantId: string, itemId: string, conn
   const subscribers = await subscriptions.getSubscribersWithConnection({ participantId, itemId }, connectionId);
   if (subscribers.length > 1) console.warn('more than a subscriber for a pk and connection id (not really expected)');
   if (subscribers.length === 0) console.warn('no subscriber for the requested pk and connection id (not really expected)');
-  await subscriptions.unsubscribe(subscribers);
+  else await subscriptions.unsubscribe(subscribers);
 }

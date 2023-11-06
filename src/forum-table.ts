@@ -62,17 +62,21 @@ export class ForumTable {
   }
 
   protected async batchUpdate<T extends TableKey>(items: T[]): Promise<void> {
-    await this.db.batchWriteItem({
-      /* eslint-disable @typescript-eslint/naming-convention */
-      RequestItems: {
-        [this.tableName]: items.map(i => ({
-          PutRequest: {
-            Item: toDBItem(i),
-          },
-        })),
-      }
-      /* eslint-enable @typescript-eslint/naming-convention */
-    });
+    const chunkSize = 25; // the max size of 'RequestItems' for the dynamoDB APi
+    for (let i = 0; i < items.length; i += chunkSize) {
+      await this.db.batchWriteItem({
+        /* eslint-disable @typescript-eslint/naming-convention */
+        RequestItems: {
+          [this.tableName]: items.slice(i, i + chunkSize).map(i => ({
+            PutRequest: {
+              Item: toDBItem(i),
+            },
+          })),
+        }
+        /* eslint-enable @typescript-eslint/naming-convention */
+      });
+    }
+
   }
 
 }

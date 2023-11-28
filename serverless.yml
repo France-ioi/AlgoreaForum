@@ -1,4 +1,4 @@
-service: algoreaforum
+service: alg-forum
 frameworkVersion: '3'
 useDotenv: true
 

@@ -1,5 +1,7 @@
 git:
   requireCommits: true
+  commitArgs:
+    - "--no-verify" # disable hooks
 github:
   release: true
 npm: false

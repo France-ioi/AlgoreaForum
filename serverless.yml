@@ -16,6 +16,8 @@ custom:
 
 provider:
   name: aws
+  deploymentBucket:
+    name: alg-ops
   environment:
     STAGE: ${opt:stage, 'dev'}
     BACKEND_PUBLIC_KEY: ${env:BACKEND_PUBLIC_KEY}

@@ -20,7 +20,7 @@ provider:
     STAGE: ${opt:stage, 'dev'}
     BACKEND_PUBLIC_KEY: ${env:BACKEND_PUBLIC_KEY}
     TABLE_NAME: ${env:TABLE_NAME}
-  runtime: nodejs14.x
+  runtime: nodejs20.x
   deploymentMethod: direct
   region: eu-west-3
   iam:

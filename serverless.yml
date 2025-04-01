@@ -22,6 +22,8 @@ provider:
     TABLE_NAME: ${env:TABLE_NAME}
   runtime: nodejs20.x
   deploymentMethod: direct
+  deploymentBucket:
+    name: ${env:OPS_BUCKET}
   stackName: alg-forum-${opt:stage, 'dev'}
   region: eu-west-3
   iam:

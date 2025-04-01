@@ -1,4 +1,4 @@
-service: algoreaforum
+service: alg-forum
 frameworkVersion: '3'
 useDotenv: true
 
@@ -24,7 +24,6 @@ provider:
   deploymentMethod: direct
   deploymentBucket:
     name: ${env:OPS_BUCKET}
-  stackName: alg-forum-${opt:stage, 'dev'}
   region: eu-west-3
   iam:
     role:
